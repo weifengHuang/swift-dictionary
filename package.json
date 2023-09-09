@@ -21,10 +21,10 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "electron-start": "electron -r ts-node/register ./electron/main.ts",
+    "electron-start": "tsc -p electron && electron ./build/electron/main.js",
     "react-start": "react-scripts start",
     "react-build": "react-scripts build",
-    "dev": "concurrently \"npm run react-start\" \"wait-on http://localhost:3000 && npm run electron-start\""
+    "start": "concurrently \" BROWSER=none npm run react-start\" \"wait-on http://127.0.0.1:3000 && npm run electron-start\""
   },
   "eslintConfig": {
     "extends": [
@@ -46,7 +46,8 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.1",
-    "ts-node": "^10.9.1"
+    "electron": "^26.1.0",
+    "wait-on": "^7.0.1"
   },
   "repository": "https://github.com/weifengHuang/swift-dictionary.git"
 }
