@@ -1,7 +1,33 @@
 import { app, BrowserWindow, globalShortcut, clipboard } from 'electron';
-import * as path from 'path';
+import path from 'path';
 import isDev from 'electron-is-dev';
 import Mdict from 'mdict';
+import * as fs from 'fs';
+import * as util from 'util';
+
+const WORD_BOOK_FILE = './wordbook.json';
+
+async function addToWordBook(word: string) {
+  const readFile = util.promisify(fs.readFile);
+  const writeFile = util.promisify(fs.writeFile);
+
+  // 检查文件是否存在，如果不存在，则创建一个空数组
+  if (!fs.existsSync(WORD_BOOK_FILE)) {
+    await writeFile(WORD_BOOK_FILE, JSON.stringify([]));
+  }
+
+  // 读取文件内容
+  const fileContent = await readFile(WORD_BOOK_FILE, 'utf-8');
+  const wordList = JSON.parse(fileContent);
+
+  // 检查单词是否已存在于生词本中
+  if (!wordList.includes(word)) {
+    wordList.push(word);
+
+    // 将更新后的内容写回文件中
+    await writeFile(WORD_BOOK_FILE, JSON.stringify(wordList));
+  }
+}
 
 async function setupGlobalShortcuts() {
   const dictionary = await loadDictionary();
@@ -13,16 +39,19 @@ async function setupGlobalShortcuts() {
       if (entries.length > 0) {
         showTranslation(entries[0]);
       }
+      // 将单词添加到生词本中
+      await addToWordBook(selectedText);
     }
   });
 }
 
 async function loadDictionary() {
-  const dictionaryPath = path.resolve(`./mdxFile/Cambridge Advanced Learner's Dictionary 4th.mdx`);
+  const dictionaryPath = path.resolve(
+    `./mdxFile/Cambridge Advanced Learner's Dictionary 4th.mdx`
+  );
   const mdict = await Mdict.dictionary(dictionaryPath);
   return mdict;
 }
-
 
 function showTranslation(htmlContent: string) {
   const translationWindow = new BrowserWindow({
@@ -33,8 +62,9 @@ function showTranslation(htmlContent: string) {
       contextIsolation: true,
     },
   });
-
-  translationWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+  translationWindow.loadURL(
+    `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`
+  );
 }
 
 function createWindow() {
@@ -48,7 +78,11 @@ function createWindow() {
     },
   });
 
-  win.loadURL(isDev ? 'http://localhost:3000' : `file://${path.join(__dirname, '../build/index.html')}`);
+  win.loadURL(
+    isDev
+      ? 'http://localhost:3000'
+      : `file://${path.join(__dirname, '../build/index.html')}`
+  );
 }
 
 app.whenReady().then(() => {
@@ -71,5 +105,3 @@ app.on('activate', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
 });
-
-
