@@ -1,9 +1,9 @@
 declare module 'mdict' {
   interface Mdict {
-    dictionary(path: string): Promise<Dictionary>;
+    dictionary(path: string): Promise<IDictionary>;
   }
 
-  interface Dictionary {
+  export interface IDictionary {
     search(options: {
       phrase: string;
       max?: number;
@@ -13,5 +13,5 @@ declare module 'mdict' {
   }
   const mdict: Mdict;
 
-  export = mdict;
+  export default mdict;
 }

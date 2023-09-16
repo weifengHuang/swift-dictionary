@@ -1,9 +1,15 @@
-import { app, BrowserWindow, globalShortcut, clipboard } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  clipboard,
+  ipcMain,
+} from 'electron';
 import path from 'path';
 import isDev from 'electron-is-dev';
-import Mdict from 'mdict';
 import * as fs from 'fs';
 import * as util from 'util';
+import { dictionary } from './dictionary';
 
 const WORD_BOOK_FILE = './wordbook.json';
 
@@ -30,7 +36,6 @@ async function addToWordBook(word: string) {
 }
 
 async function setupGlobalShortcuts() {
-  const dictionary = await loadDictionary();
   globalShortcut.register('CommandOrControl+SHIFT+C', async () => {
     const selectedText = clipboard.readText();
     if (selectedText) {
@@ -43,14 +48,6 @@ async function setupGlobalShortcuts() {
       await addToWordBook(selectedText);
     }
   });
-}
-
-async function loadDictionary() {
-  const dictionaryPath = path.resolve(
-    `./mdxFile/Cambridge Advanced Learner's Dictionary 4th.mdx`
-  );
-  const mdict = await Mdict.dictionary(dictionaryPath);
-  return mdict;
 }
 
 function showTranslation(htmlContent: string) {
@@ -72,8 +69,7 @@ function createWindow() {
     width: 800,
     height: 600,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      preload: path.join(__dirname, 'preload.js')
       // enableRemoteModule: true,
     },
   });
@@ -86,6 +82,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  initIpcMain()
+  dictionary.loadDictionary();
   createWindow();
   setupGlobalShortcuts();
 });
@@ -105,3 +103,15 @@ app.on('activate', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
 });
+
+// 初始化监听方法
+function initIpcMain() {
+  // 监听来自渲染进程的消息
+  ipcMain.handle('search-words', async (event, query) => {
+    return dictionary.search(query);
+  });
+
+  ipcMain.handle('lookup-word', async (event, word) => {
+    return dictionary.lookup(word);
+  });
+}
