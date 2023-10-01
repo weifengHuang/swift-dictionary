@@ -114,4 +114,8 @@ function initIpcMain() {
   ipcMain.handle('lookup-word', async (event, word) => {
     return dictionary.lookup(word);
   });
+
+  ipcMain.handle('add-book', (_, word) => {
+    addToWordBook(word);
+  })
 }

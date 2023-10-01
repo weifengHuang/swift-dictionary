@@ -11,6 +11,8 @@ export const selectedWordDefinitionAtom = atom(async (get) => {
       word
     );
     if (entries.length > 0) {
+      // 这里如果查到则写到生词本；
+      (window as any).ipcRenderer.invoke('add-book', word);
       return entries[0];
     }
   }

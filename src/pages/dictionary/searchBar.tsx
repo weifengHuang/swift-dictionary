@@ -8,7 +8,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => (
   <Input.Search
     placeholder="搜索单词"
     onSearch={onSearch}
-    enterButton
-    style={{ width: 200, margin: '0 10px' }}
+    onChange={(e) => {
+      onSearch(e.target.value);
+    }}
+    // enterButton
+    style={{ width: 200 }}
   />
 );

@@ -9,11 +9,18 @@ export const SearchResults: React.FC = () => {
   const onClick = (text: string) => {
     setTextValue(text);
   };
+  if (searchResults.length === 0 ) {
+    return null;
+  }
 
   return (
     <List
       bordered
       dataSource={searchResults}
+      locale= {{
+        emptyText: '暂无数据'
+      }
+      }
       renderItem={(item) => (
         <List.Item
           onClick={() => {

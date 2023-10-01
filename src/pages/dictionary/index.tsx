@@ -19,7 +19,9 @@ export const DictionaryPage: React.FC = () => {
   return (
     <div className="flex">
       <div className="w-1/4 p-4">
-        <SearchBar onSearch={handleSearch} />
+        <SearchBar 
+          onSearch={handleSearch} 
+        />
         <SearchResults />
       </div>
       <div className="w-3/4 p-4">
