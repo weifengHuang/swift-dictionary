@@ -1,37 +1,56 @@
-import mdict, { IDictionary } from 'mdict';
-import * as path from 'path';
+import Mdict from 'js-mdict';
+import Store from "electron-store";
+const store = new Store<{dictionaryPath: string, dictionaryMediaPath:string}>();
 
 class Dictionary {
-  private dictionary: IDictionary | null = null;
-
+  private dictionary: Mdict | null = null;
+  private dictionaryMedia: Mdict | null = null;
   async loadDictionary() {
-    const dictionaryPath = path.resolve(
-      "./mdxFile/Cambridge Advanced Learner's Dictionary 4th.mdx"
-    );
-    this.dictionary = await mdict.dictionary(dictionaryPath);
+    const dictionaryPath = store.get("dictionaryPath");
+    const dictionaryMediaPath = store.get("dictionaryMediaPath");
+    if (!dictionaryPath || !dictionaryMediaPath) {
+       return false;
+    };
+    this.dictionary = new Mdict(dictionaryPath);
+    this.dictionaryMedia = new Mdict(dictionaryMediaPath);
   }
 
-  async lookup(word: string) {
+  updateDictionaryPaths(dictionaryPath: string, dictionaryMediaPath: string) {
+    this.dictionary = new Mdict(dictionaryPath);
+    store.set("dictionaryPath", dictionaryPath);
+    if (dictionaryMediaPath) {
+      this.dictionaryMedia = new Mdict(dictionaryMediaPath);
+      store.set("dictionaryMediaPath", dictionaryMediaPath);
+    }
+  }
+
+  async lookup(word: string, type?: 'mdd'): Promise<string | undefined> {
     if (!this.dictionary) {
       throw new Error('Dictionary is not loaded');
     }
-
+    if (type ==='mdd') {
+      if (!this.dictionaryMedia) {
+        throw new Error('DictionaryMedia is not loaded');
+      }
+      const entries = await this.dictionaryMedia.lookup('\\' + word);
+      if (entries.definition) {
+        return entries.definition;
+      }
+    }
     const entries = await this.dictionary.lookup(word);
-    return entries;
+    if (entries.definition) {
+      return entries.definition;
+    }
   }
 
   async search(query: string) {
-    if (!this.dictionary) {
+    if (!this.dictionary)  {
       throw new Error('Dictionary is not loaded');
     }
-
-    const results = await this.dictionary.search({
-      phrase: query,
-      max: 10,
-    });
-
-    return results;
+    const results = await this.dictionary.prefix(query);
+    return results.map(item => item.key);
   }
 }
 
 export const dictionary = new Dictionary();
+``

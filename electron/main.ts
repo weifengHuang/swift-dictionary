@@ -4,6 +4,7 @@ import {
   globalShortcut,
   clipboard,
   ipcMain,
+  dialog
 } from 'electron';
 import path from 'path';
 import isDev from 'electron-is-dev';
@@ -40,9 +41,9 @@ async function setupGlobalShortcuts() {
     const selectedText = clipboard.readText();
     if (selectedText) {
       console.log('Selected Text:', selectedText);
-      const entries = await dictionary.lookup(selectedText);
-      if (entries.length > 0) {
-        showTranslation(entries[0]);
+      const definition = await dictionary.lookup(selectedText);
+      if (definition) {
+        showTranslation(definition);
       }
       // 将单词添加到生词本中
       await addToWordBook(selectedText);
@@ -83,9 +84,9 @@ function createWindow() {
 
 app.whenReady().then(() => {
   initIpcMain()
-  dictionary.loadDictionary();
   createWindow();
   setupGlobalShortcuts();
+  dictionary.loadDictionary();
 });
 
 app.on('window-all-closed', () => {
@@ -107,15 +108,31 @@ app.on('will-quit', () => {
 // 初始化监听方法
 function initIpcMain() {
   // 监听来自渲染进程的消息
-  ipcMain.handle('search-words', async (event, query) => {
+  ipcMain.handle('search-words', async (_, query) => {
     return dictionary.search(query);
   });
 
-  ipcMain.handle('lookup-word', async (event, word) => {
-    return dictionary.lookup(word);
+  ipcMain.handle('lookup-word', async (_, word: string, type?:'mdd') => {
+    return dictionary.lookup(word, type);
   });
 
   ipcMain.handle('add-book', (_, word) => {
     addToWordBook(word);
+  });
+  ipcMain.handle('open-file-dialog-for-dictionary', async (event) => {
+    const {filePaths} = await dialog.showOpenDialog({
+      properties: ['openFile', 'multiSelections'],
+      filters: [{name: 'Dictionaries', extensions: ['mdx', 'mdd']}],
+    })
+    if (!filePaths) {
+      return ;
+    }
+    const mdxPath = filePaths.find(filePath => path.extname(filePath).toLowerCase() === '.mdx');
+    const mddPath = filePaths.find(filePath => path.extname(filePath).toLowerCase() === '.mdd');
+    if (mdxPath && mddPath) {
+      dictionary.updateDictionaryPaths(mdxPath, mddPath)
+    } else {
+      // handle error
+    }
   })
 }

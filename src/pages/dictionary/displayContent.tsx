@@ -5,6 +5,9 @@ import { useAtomValue } from 'jotai';
 
 export const DisplayContent: FC = () => {
   const wordDefinition = useAtomValue(selectedWordDefinitionAtom);
+  if (!wordDefinition) {
+    return null
+  }
   return (
     <div>
       {wordDefinition && (

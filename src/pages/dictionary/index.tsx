@@ -4,6 +4,7 @@ import { SearchResults } from './searchResults';
 import { useAtom } from 'jotai';
 import { searchResultsAtom } from './store';
 import { DisplayContent } from './displayContent';
+import {Toolbar} from './toolbar';
 
 export const DictionaryPage: React.FC = () => {
   const [_, setSearchResults] = useAtom(searchResultsAtom);
@@ -15,7 +16,6 @@ export const DictionaryPage: React.FC = () => {
     );
     setSearchResults(results.map((item: any) => item.toString()));
   };
-
   return (
     <div className="flex">
       <div className="w-1/4 p-4">
@@ -25,6 +25,7 @@ export const DictionaryPage: React.FC = () => {
         <SearchResults />
       </div>
       <div className="w-3/4 p-4">
+        <Toolbar/>
         <Suspense>
           <DisplayContent />
         </Suspense>
