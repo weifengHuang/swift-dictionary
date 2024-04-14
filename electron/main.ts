@@ -12,6 +12,9 @@ import * as fs from 'fs';
 import * as util from 'util';
 import { dictionary } from './dictionary';
 
+let translationWindow: BrowserWindow | null = null;
+
+
 const WORD_BOOK_FILE = './wordbook.json';
 
 async function addToWordBook(word: string) {
@@ -40,7 +43,6 @@ async function setupGlobalShortcuts() {
   globalShortcut.register('CommandOrControl+SHIFT+C', async () => {
     const selectedText = clipboard.readText();
     if (selectedText) {
-      console.log('Selected Text:', selectedText);
       const definition = await dictionary.lookup(selectedText);
       if (definition) {
         showTranslation(definition);
@@ -52,17 +54,30 @@ async function setupGlobalShortcuts() {
 }
 
 function showTranslation(htmlContent: string) {
-  const translationWindow = new BrowserWindow({
-    width: 400,
-    height: 300,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-  });
+  if (!translationWindow) {
+    // 如果窗口不存在,创建新窗口
+    translationWindow = new BrowserWindow({
+      width: 400,
+      height: 300,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // 当窗口关闭时,将引用设置为null
+    translationWindow.on('closed', () => {
+      translationWindow = null;
+    });
+  }
+
+  // 加载HTML内容到窗口
   translationWindow.loadURL(
     `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`
   );
+
+  // 显示窗口
+  translationWindow.show();
 }
 
 function createWindow() {
@@ -77,7 +92,7 @@ function createWindow() {
 
   win.loadURL(
     isDev
-      ? 'http://localhost:3000'
+      ? 'http://localhost:3009'
       : `file://${path.join(__dirname, '../build/index.html')}`
   );
 }

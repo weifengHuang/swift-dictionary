@@ -18,11 +18,17 @@ async function processDefinition(definition: string): Promise<string> {
   const matches = definition.match(/src="(.*?)"/g);
   if (matches) {
       for (let match of matches) {
-          debugger
           const newStr = await processImage(match);
           definition = definition.replace(match, newStr);
       }
   }
+  // definition = definition.replace(/<a href="(.*?)">/g, (match, href) => {
+  //   if (href.startsWith('sound://')) {
+  //     return `<a href="${href}" onClick="widow.playSound('${href}')">`;
+  //   } else {
+  //     return match;
+  //   }
+  // });
   return definition;
 }
 
