@@ -5,7 +5,6 @@ import { searchResultsAtom, selectedText } from './store';
 export const SearchResults: React.FC = () => {
   const [searchResults] = useAtom(searchResultsAtom);
   const [_, setTextValue] = useAtom(selectedText);
-  console.log('searchResults', searchResults);
   const onClick = (text: string) => {
     setTextValue(text);
   };

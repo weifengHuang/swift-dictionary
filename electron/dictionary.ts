@@ -36,10 +36,12 @@ class Dictionary {
       if (entries.definition) {
         return entries.definition;
       }
-    }
-    const entries = await this.dictionary.lookup(word);
-    if (entries.definition) {
-      return entries.definition;
+    } else {
+      let queryWord = word.toLowerCase();
+      const entries = await this.dictionary.lookup(queryWord);
+      if (entries.definition) {
+        return entries.definition;
+      }
     }
   }
 
