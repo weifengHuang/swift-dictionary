@@ -38,16 +38,24 @@ export const DisplayContent: FC = () => {
       console.error('lookup error', error);
     }
   };
- 
+
   return (
     <div>
       {wordDefinition && (
         <div
           dangerouslySetInnerHTML={{ __html: wordDefinition }}
           onClick={(e) => {
-            const target = e.target as HTMLAnchorElement;
-            if (target?.href?.startsWith('sound://')) {
-              playSound(target.href);
+            const target = e.target as HTMLElement;
+            let aTagDom: HTMLAnchorElement | null = null;
+            if (target instanceof HTMLAnchorElement) {
+              aTagDom = target;
+            } else if (target.tagName.toLowerCase() === 'img' && target.parentElement instanceof HTMLAnchorElement) {
+              aTagDom = target.parentElement as HTMLAnchorElement;
+            }
+            if (aTagDom && aTagDom.href.startsWith('sound://')) {
+              playSound(aTagDom.href);
+            } else {
+              console.error('not sound');
             }
           }}
         />
