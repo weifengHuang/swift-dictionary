@@ -1,6 +1,6 @@
 import { FC } from 'react';
 // 引入store
-import { selectedWordDefinitionAtom } from './store';
+import { selectedWordDefinitionAtom } from '@renderer/store';
 import { useAtomValue } from 'jotai';
 import { decodeSpeex } from '../../util';
 

@@ -1,6 +1,6 @@
 import { List } from 'antd';
 import { useAtom } from 'jotai';
-import { searchResultsAtom, selectedText } from './store';
+import { searchResultsAtom, selectedText } from '@renderer/store/index';
 
 export const SearchResults: React.FC = () => {
   const [searchResults] = useAtom(searchResultsAtom);
