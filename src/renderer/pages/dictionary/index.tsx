@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { SearchResults } from './searchResults';
+import { SearchResults } from '../../components/searchResults';
 import { DisplayContent } from './displayContent';
 // import {Toolbar} from '../../components/toolbar';
 // import { message } from 'antd';

@@ -1,7 +1,6 @@
 import { createRoot } from 'react-dom/client';
-import WindowFrame from '@renderer/window/WindowFrame';
+import { RoutesEnum } from '@renderer/constants'
 import { createHashRouter, RouterProvider } from 'react-router-dom';
-// import Application from '@components/Application';
 import DictionaryPage from './pages/dictionary';
 import NoteBook from './pages/notebook';
 import Home from './pages/home';
@@ -16,26 +15,21 @@ const router = createHashRouter([
     element: <Home />,
     children: [
       {
-        path: '/dictionary',
-        element: <DictionaryPage/>
+        path: RoutesEnum.dictionary,
+        element: <DictionaryPage/>,
+        index:true
       },
       {
-        path: '/noteBook',
+        path: RoutesEnum.noteBook,
         element: <NoteBook />,
       },
     ],
-  },
-  // {
-  //   path: '/notebook',
-  //   element: <NoteBook />,
-  // },
+  }
 ]);
 
 // Application to Render
 const app = (
-  <WindowFrame title='ERWT Boilerplate' platform='mac'>
     <RouterProvider router={router} />
-  </WindowFrame>
 );
 
 // Render application in DOM

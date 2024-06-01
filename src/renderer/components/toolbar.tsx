@@ -5,6 +5,7 @@ import {
   BookOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
+import { RoutesEnum } from '@renderer/constants';
 
 type IconContainerProps = React.PropsWithChildren<{ text: string }>;
 
@@ -23,10 +24,10 @@ export const Toolbar = () => {
     window.ipcRenderer.invoke('open-file-dialog-for-dictionary');
   };
   const onClickNoteBook = () => {
-    navigate('/notebook');
+    navigate(RoutesEnum.noteBook);
   };
   const onClickDictionary = () => {
-    navigate('/dictionary');
+    navigate(RoutesEnum.dictionary);
   };
 
   return (

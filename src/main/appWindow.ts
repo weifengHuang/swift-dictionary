@@ -27,25 +27,29 @@ let translationWindow: BrowserWindow | null = null;
 const WORD_BOOK_FILE = './wordbook.json';
 
 async function addToWordBook(word: string) {
-  const readFile = util.promisify(fs.readFile);
   const writeFile = util.promisify(fs.writeFile);
-
   // 检查文件是否存在，如果不存在，则创建一个空数组
   if (!fs.existsSync(WORD_BOOK_FILE)) {
     await writeFile(WORD_BOOK_FILE, JSON.stringify([]));
   }
-
-  // 读取文件内容
-  const fileContent = await readFile(WORD_BOOK_FILE, 'utf-8');
-  const wordList = JSON.parse(fileContent);
-
+  const wordBook = await getWordBook();
   // 检查单词是否已存在于生词本中
-  if (!wordList.includes(word)) {
-    wordList.push(word);
-
+  if (!(word in wordBook)) {
+    wordBook[word] = {
+      createAt: Date.now()
+    }
     // 将更新后的内容写回文件中
-    await writeFile(WORD_BOOK_FILE, JSON.stringify(wordList));
+    await writeFile(WORD_BOOK_FILE, JSON.stringify(wordBook));
   }
+}
+
+async  function getWordBook () {
+  const readFile = util.promisify(fs.readFile);
+  const fileContent = await readFile(WORD_BOOK_FILE, 'utf-8');
+  const wordBook: Record<string, object> = JSON.parse(fileContent);
+  console.log("wordBook", wordBook);
+  return wordBook
+
 }
 
 async function setupGlobalShortcuts() {
@@ -101,6 +105,9 @@ function registerDictionaryIpc() {
   ipcMain.handle('add-book', (_, word) => {
     addToWordBook(word);
   });
+  ipcMain.handle('read-book', () => {
+    return getWordBook();
+  })
   ipcMain.handle('open-file-dialog-for-dictionary', async () => {
     const {filePaths} = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections'],
@@ -148,9 +155,6 @@ export function createAppWindow(): BrowserWindow {
     width: 800,
     height: 600,
     show: false,
-    // autoHideMenuBar: true,
-    frame: false,
-    // titleBarStyle: 'hidden',
     icon: path.resolve('assets/images/appIcon.ico'),
     webPreferences: {
       nodeIntegration: false,

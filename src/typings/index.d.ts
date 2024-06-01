@@ -14,9 +14,11 @@ interface SpeexHeader {
   nb_channels: number;
 }
 
+type IpcChanel = 'open-file-dialog-for-dictionary' | 'add-book' | 'read-book' | 'search-words' | 'lookup-word'
+
 interface Window {
   ipcRenderer: {
-    invoke:<T>(channel: string, ...args: unknown[]) => Promise<T>;
+    invoke:<T>(channel: IpcChanel, ...args: unknown[]) => Promise<T>;
   };
   SpeexComment: unknown;
 
