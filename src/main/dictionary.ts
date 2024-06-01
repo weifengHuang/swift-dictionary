@@ -1,5 +1,6 @@
 import Mdict from 'js-mdict';
 import Store from "electron-store";
+import { getWordBook } from './appWindow';
 const store = new Store<{dictionaryPath: string, dictionaryMediaPath:string}>();
 
 class Dictionary {
@@ -45,7 +46,24 @@ class Dictionary {
     }
   }
 
-  async search(query: string) {
+
+  async fuzzySearchInBook(text: string): Promise<string[]> {
+    const result: string[] = [];
+    // TODO: 考虑一下这里的缓存机制，不每次读文件；
+    const book = await getWordBook()
+    const keys = Object.keys(book);
+    for (const key of keys) {
+      if (key.toLowerCase().includes(text.toLowerCase())) {
+        result.push(key);
+      }
+    }
+    return result;
+  }
+
+  async search(query: string, scene?: 'noteBook' | '') {
+    if (scene === 'noteBook') {
+      return await this.fuzzySearchInBook(query);
+    }
     if (!this.dictionary)  {
       throw new Error('Dictionary is not loaded');
     }

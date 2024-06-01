@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { SearchBar } from '@components/searchBar';
 import { useAtom } from 'jotai';
 import { searchResultsAtom } from '@renderer/store/index';
@@ -11,12 +11,18 @@ import { RoutesEnum } from '@renderer/constants';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [_, setSearchResults] = useAtom(searchResultsAtom);
   const handleSearch = async (value: string) => {
     try {
+      let scene 
+      if (location.pathname === RoutesEnum.noteBook) {
+        scene = 'noteBook'
+      }
       const results = await window.ipcRenderer.invoke<unknown[]>(
         'search-words',
         value,
+        scene
       );
       setSearchResults(results.map((item: unknown) => item.toString()));
     } catch (error) {

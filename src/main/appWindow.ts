@@ -43,11 +43,10 @@ async function addToWordBook(word: string) {
   }
 }
 
-async  function getWordBook () {
+export async  function getWordBook () {
   const readFile = util.promisify(fs.readFile);
   const fileContent = await readFile(WORD_BOOK_FILE, 'utf-8');
   const wordBook: Record<string, object> = JSON.parse(fileContent);
-  console.log("wordBook", wordBook);
   return wordBook
 
 }
@@ -94,8 +93,8 @@ function showTranslation(htmlContent: string) {
 }
 
 function registerDictionaryIpc() {
-  ipcMain.handle('search-words', async (_, query) => {
-    return dictionary.search(query);
+  ipcMain.handle('search-words', async (_, query, scene: 'noteBook' | '') => {
+      return dictionary.search(query, scene);
   });
 
   ipcMain.handle('lookup-word', async (_, word: string, type?:'mdd') => {
