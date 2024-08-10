@@ -1,8 +1,9 @@
-import { FC } from 'react';
+import { FC, useEffect } from 'react';
 // 引入store
-import { selectedWordDefinitionAtom } from '@renderer/store';
-import { useAtomValue } from 'jotai';
+import { selectedTextAtom, selectedWordDefinitionAtom } from '@renderer/store';
+import { useAtom, useAtomValue } from 'jotai';
 import { decodeSpeex } from '../../util';
+import { useSearchParams } from 'react-router-dom';
 
 function getSoundFilename(soundUrl: string) {
   if (soundUrl.startsWith('sound://')) {
@@ -14,10 +15,22 @@ function getSoundFilename(soundUrl: string) {
 }
 
 export const DisplayContent: FC = () => {
+  const [searchParams] = useSearchParams();
+  const textParam = searchParams.get('text');
+  const [selectedText, setSelectedText] = useAtom(selectedTextAtom);
   const wordDefinition = useAtomValue(selectedWordDefinitionAtom);
-  if (!wordDefinition) {
+  useEffect(() => {
+    if (textParam) {
+      setSelectedText(textParam);
+    }
+  }, [textParam]);
+  if (!selectedText) {
     return null;
   }
+  if (!wordDefinition) {
+    return 'not found the definition';
+  }
+
   const playSound = async (href: string) => {
     const soundFilename = getSoundFilename(href);
     if (!playSound) {

@@ -1,6 +1,6 @@
 import { List } from 'antd';
 import { useAtom } from 'jotai';
-import { searchResultsAtom, selectedText } from '@renderer/store/index';
+import { searchResultsAtom, selectedTextAtom } from '@renderer/store/index';
 import { useLocation } from 'react-router-dom';
 import { RoutesEnum } from '@renderer/constants';
 import { useEffect } from 'react';
@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 export const SearchResults: React.FC = () => {
   const { pathname } = useLocation();
   const [searchResults, setResult] = useAtom(searchResultsAtom);
-  const [_, setTextValue] = useAtom(selectedText);
+  const [_, setTextValue] = useAtom(selectedTextAtom);
   useEffect(() => {
     async function readBook () {
       try {

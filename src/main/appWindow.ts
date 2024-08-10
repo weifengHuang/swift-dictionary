@@ -55,17 +55,14 @@ async function setupGlobalShortcuts() {
   globalShortcut.register('CommandOrControl+SHIFT+C', async () => {
     const selectedText = clipboard.readText();
     if (selectedText) {
-      const definition = await dictionary.lookup(selectedText);
-      if (definition) {
-        showTranslation(definition);
-      }
+      showTranslation(selectedText);
       // 将单词添加到生词本中
       await addToWordBook(selectedText);
     }
   });
 }
 
-function showTranslation(htmlContent: string) {
+function showTranslation(selectedText: string) {
   if (!translationWindow) {
     // 如果窗口不存在,创建新窗口
     translationWindow = new BrowserWindow({
@@ -74,6 +71,10 @@ function showTranslation(htmlContent: string) {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        nodeIntegrationInWorker: false,
+        nodeIntegrationInSubFrames: false,
+        preload: APP_WINDOW_PRELOAD_WEBPACK_ENTRY,
+        sandbox: false,
       },
     });
 
@@ -83,10 +84,8 @@ function showTranslation(htmlContent: string) {
     });
   }
 
-  // 加载HTML内容到窗口
-  translationWindow.loadURL(
-    `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`
-  );
+  translationWindow.loadURL(`${APP_WINDOW_WEBPACK_ENTRY}#/displayContent?text=${selectedText}`);
+
 
   // 显示窗口
   translationWindow.show();
@@ -118,7 +117,14 @@ function registerDictionaryIpc() {
     const mdxPath = filePaths.find(filePath => path.extname(filePath).toLowerCase() === '.mdx');
     const mddPath = filePaths.find(filePath => path.extname(filePath).toLowerCase() === '.mdd');
     if (mdxPath && mddPath) {
-      dictionary.updateDictionaryPaths(mdxPath, mddPath)
+      dictionary.updateDictionaryPaths(mdxPath, mddPath);
+      dialog.showMessageBox({
+        type: 'info',
+        title: '导入成功',
+        message: '字典已成功导入',
+        buttons: ['确定'],
+        icon: null
+      });
     } else {
       // handle error
     }

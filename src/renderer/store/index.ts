@@ -1,7 +1,7 @@
 import { atom } from 'jotai';
 
 export const searchResultsAtom = atom<string[]>([]);
-export const selectedText = atom<string>('');
+export const selectedTextAtom = atom<string>('');
 
 function extractSrcValue(srcString: string): string {
   const match = srcString.match(/src="(.*?)"/);
@@ -34,7 +34,7 @@ async function processDefinition(definition: string): Promise<string> {
 
 
 export const selectedWordDefinitionAtom = atom(async (get) => {
-  const word = get(selectedText);
+  const word = get(selectedTextAtom);
   if (word) {
     const definition = await window.ipcRenderer.invoke<string>(
       'lookup-word',

@@ -5,6 +5,7 @@ import DictionaryPage from './pages/dictionary';
 import NoteBook from './pages/notebook';
 import Home from './pages/home';
 import './index.scss';
+import { DisplayContent } from './pages/dictionary/displayContent';
 
 // Say something
 console.log('[ERWT] : Renderer execution started');
@@ -24,6 +25,10 @@ const router = createHashRouter([
         element: <NoteBook />,
       },
     ],
+  },
+  {
+    path: '/displayContent',
+    element: <DisplayContent />,
   }
 ]);
 
