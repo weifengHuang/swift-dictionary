@@ -1,11 +1,52 @@
-# swift-dictionary
-一个支持自定义三方词典导入的桌面端应用
+# Swift Dictionary
 
-## TODO:
-- [x] 在主页面实现导入三方字典功能；
-- [x] 支持朗读发音
-- [x] 支持生词本回看
-- [ ] 支持生词本考试 & 练习；
-- [ ] 支持生词本导出；
+Swift Dictionary is a desktop application that supports importing custom third-party dictionaries.
 
+## Features
 
+- [x] Import third-party dictionaries on the main page
+- [x] Support for pronunciation playback
+- [x] View saved words in a vocabulary notebook
+- [ ] Support for vocabulary tests & practice
+- [ ] Support for exporting vocabulary lists
+
+## Usage
+
+1. Use the toolbar to navigate between the dictionary and notebook views.
+2. Import a dictionary using the "Import Dictionary" button.
+3. Use the search bar to look up words.
+4. Words you look up will automatically be added to your notebook.
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (version 20 or higher)
+- Electron
+- React
+- TypeScript
+- Webpack
+
+### Installation
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/weifengHuang/swift-dictionary.git
+   ```
+
+2. Navigate to the project directory:
+   ```
+   cd swift-dictionary
+   ```
+
+3. Install dependencies:
+   ```
+   npm install
+   ```
+
+### Running the Application
+
+To start the application in development mode:
+```
+npm run start
+```
