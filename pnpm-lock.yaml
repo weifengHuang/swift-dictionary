@@ -26,6 +26,12 @@ importers:
       lodash.debounce:
         specifier: ^4.0.8
         version: 4.0.8
+      node-get-selected-text:
+        specifier: ^0.1.9
+        version: 0.1.9
+      node-selection:
+        specifier: 0.2.0-alpha.0
+        version: 0.2.0-alpha.0
       react:
         specifier: ^18.2.0
         version: 18.2.0
@@ -126,6 +132,9 @@ importers:
       node-loader:
         specifier: ^2.0.0
         version: 2.0.0(webpack@5.89.0)
+      node-mac-permissions:
+        specifier: ^2.4.0
+        version: 2.4.0
       postcss-loader:
         specifier: ^8.1.1
         version: 8.1.1(postcss@8.4.33)(typescript@5.3.3)(webpack@5.89.0)
@@ -971,6 +980,9 @@ packages:
     resolution: {integrity: sha512-jDctJ/IVQbZoJykoeHbhXpOlNBqGNcwXJKJog42E5HDPUwQTSdjCHdihjj0DlnheQ7blbT6dHOafNAiS8ooQKA==}
     engines: {node: '>=8'}
 
+  bindings@1.5.0:
+    resolution: {integrity: sha512-p2q/t/mhvuOj/UeLlV6566GD/guowlr0hHxClI0W9m7MWYkL1F0hLo+0Aexs9HSPCtR1SXQ0TD3MMKrXZajbiQ==}
+
   bl@2.2.1:
     resolution: {integrity: sha512-6Pesp1w0DEX1N550i/uGV/TqucVL4AM/pgThFSN/Qq9si1/DF9aIHs1BxD8V/QU0HoeHO6cQRTAuYnLPKq1e4g==}
 
@@ -1707,6 +1719,9 @@ packages:
     engines: {node: '>= 10.13.0'}
     peerDependencies:
       webpack: ^4.0.0 || ^5.0.0
+
+  file-uri-to-path@1.0.0:
+    resolution: {integrity: sha512-0Zt+s3L7Vf1biwWZ29aARiVYLx7iMGnEUl9x33fbB/j3jR81u/O2LbqK+Bm1CDSNDKVtJ/YjwY7TUd5SkeLQLw==}
 
   filename-reserved-regex@2.0.0:
     resolution: {integrity: sha512-lc1bnsSr4L4Bdif8Xb/qrtokGbq5zlsms/CYH8PP+WtCkGNF65DPiQY8vG3SakEdRn8Dlnm+gW/qWKKjS5sZzQ==}
@@ -2676,6 +2691,12 @@ packages:
   node-abort-controller@3.1.1:
     resolution: {integrity: sha512-AGK2yQKIjRuqnc6VkX2Xj5d+QW8xZ87pa1UK6yA6ouUyuxfHuMP6umE5QK7UmTeOAymo+Zx1Fxiuw9rVx8taHQ==}
 
+  node-addon-api@4.3.0:
+    resolution: {integrity: sha512-73sE9+3UaLYYFmDsFZnqCInzPyh3MqIwZO9cw58yIqAZhONrrabrYyYe3TuIqtIiOuTXVhsGau8hcrhhwSsDIQ==}
+
+  node-addon-api@7.1.1:
+    resolution: {integrity: sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==}
+
   node-api-version@0.2.0:
     resolution: {integrity: sha512-fthTTsi8CxaBXMaBAD7ST2uylwvsnYxh2PfaScwpMhos6KlSFajXQPcM4ogNE1q2s3Lbz9GCGqeIHC+C6OZnKg==}
 
@@ -2692,6 +2713,38 @@ packages:
     resolution: {integrity: sha512-dPEtOeMvF9VMcYV/1Wb8CPoVAXtp6MKMlcbAt4ddqmGqUJ6fQZFXkNZNkNlfevtNkGtaSoXf/vNNNSvgrdXwtA==}
     engines: {node: '>= 6.13.0'}
 
+  node-get-selected-text-darwin-arm64@0.1.9:
+    resolution: {integrity: sha512-n/BM2ClvRsh9rDR4fPNj0ONvNhpIfUP0A7PAGwH7j6Q4sY2I7KHmKy7clyM82nI4UZ133X+qQoXKc51PwZVWOA==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  node-get-selected-text-darwin-x64@0.1.9:
+    resolution: {integrity: sha512-1IqxU74iEvA/n/W1/WX16aR6ZqfH0DFuSyGvQBHpYFbVNClK6YiBUBHgg2AgS2pPz9rZgEOIbkbNFRh9LRLrIA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  node-get-selected-text-linux-x64-gnu@0.1.9:
+    resolution: {integrity: sha512-McVzLhHC/jgbXymwPnCYdishRxvvAkpEScSGNQO6ms01ZDMjfwvpU/LtH9E4035CHmxVGGbN35yaKF4HOngmXQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  node-get-selected-text-win32-x64-msvc@0.1.9:
+    resolution: {integrity: sha512-aQ1+2svuB/ZvkEyzZew6dRzjMS8a1ay1FoqgS4RIQi93YbCF2waFf3aWs3U9+4cEl+laDG0qIioU9c3IVmB1KA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  node-get-selected-text@0.1.9:
+    resolution: {integrity: sha512-unSSt4znCdcFky0o1Pg7HxnAqhCIJZnA8vdfvY8jV63ZhvjVzdwJheTiJASg4LJdED6FpGqb+agIlOnnLsAoOQ==}
+    engines: {node: '>= 10'}
+
+  node-gyp-build@4.8.1:
+    resolution: {integrity: sha512-OSs33Z9yWr148JZcbZd5WiAXhh/n9z8TxQcdMhIOlpN9AhWpLfvVFO73+m77bBABQMaY9XSvIa+qk0jlI7Gcaw==}
+    hasBin: true
+
   node-gyp@9.4.1:
     resolution: {integrity: sha512-OQkWKbjQKbGkMf/xqI1jjy3oCTgMKJac58G2+bjZb3fza6gW2YrCSdMQYaoTb70crvE//Gngr4f0AgVHmqHvBQ==}
     engines: {node: ^12.13 || ^14.13 || >=16}
@@ -2703,8 +2756,15 @@ packages:
     peerDependencies:
       webpack: ^5.0.0
 
+  node-mac-permissions@2.4.0:
+    resolution: {integrity: sha512-X4jH4BCHXSIFonXlRmOh5vbEODR6bUoxaTZ7rHKDtObW2A6CVCYA92Y2p2s940ztvNiHBLfsFoBiejXMLx5vPA==}
+    os: [darwin]
+
   node-releases@2.0.14:
     resolution: {integrity: sha512-y10wOWt8yZpqXmOgRo77WaHEmhYQYGNA6y421PKsKYWEK8aW+cqAphborZDhqfyKrbZEN92CN1X2KbafY2s7Yw==}
+
+  node-selection@0.2.0-alpha.0:
+    resolution: {integrity: sha512-eQrzM0m2vyAUJJeaCX4JegKThbgZiBYWUIOryT98CJvnaSVOmItTZuq6+BQND/gZFzJwpOENRiiYZjBtFMm9yQ==}
 
   nopt@6.0.0:
     resolution: {integrity: sha512-ZwLpbTgdhuZUnZzjd7nb1ZV+4DoiC6/sfiVKok72ym/4Tlf+DFdlHYmT2JPmcNNWV6Pi3SDf1kT+A4r9RTuT9g==}
@@ -5477,6 +5537,10 @@ snapshots:
 
   binary-extensions@2.2.0: {}
 
+  bindings@1.5.0:
+    dependencies:
+      file-uri-to-path: 1.0.0
+
   bl@2.2.1:
     dependencies:
       readable-stream: 2.3.8
@@ -6441,6 +6505,8 @@ snapshots:
       loader-utils: 2.0.4
       schema-utils: 3.3.0
       webpack: 5.89.0
+
+  file-uri-to-path@1.0.0: {}
 
   filename-reserved-regex@2.0.0: {}
 
@@ -7461,6 +7527,10 @@ snapshots:
 
   node-abort-controller@3.1.1: {}
 
+  node-addon-api@4.3.0: {}
+
+  node-addon-api@7.1.1: {}
+
   node-api-version@0.2.0:
     dependencies:
       semver: 7.5.4
@@ -7472,6 +7542,27 @@ snapshots:
       encoding: 0.1.13
 
   node-forge@1.3.1: {}
+
+  node-get-selected-text-darwin-arm64@0.1.9:
+    optional: true
+
+  node-get-selected-text-darwin-x64@0.1.9:
+    optional: true
+
+  node-get-selected-text-linux-x64-gnu@0.1.9:
+    optional: true
+
+  node-get-selected-text-win32-x64-msvc@0.1.9:
+    optional: true
+
+  node-get-selected-text@0.1.9:
+    optionalDependencies:
+      node-get-selected-text-darwin-arm64: 0.1.9
+      node-get-selected-text-darwin-x64: 0.1.9
+      node-get-selected-text-linux-x64-gnu: 0.1.9
+      node-get-selected-text-win32-x64-msvc: 0.1.9
+
+  node-gyp-build@4.8.1: {}
 
   node-gyp@9.4.1:
     dependencies:
@@ -7495,7 +7586,17 @@ snapshots:
       loader-utils: 2.0.4
       webpack: 5.89.0
 
+  node-mac-permissions@2.4.0:
+    dependencies:
+      bindings: 1.5.0
+      node-addon-api: 7.1.1
+
   node-releases@2.0.14: {}
+
+  node-selection@0.2.0-alpha.0:
+    dependencies:
+      node-addon-api: 4.3.0
+      node-gyp-build: 4.8.1
 
   nopt@6.0.0:
     dependencies:

@@ -12,6 +12,8 @@ import path from 'path';
 import util from 'util';
 import fs from 'fs'
 import { registerTitlebarIpc } from '@main/window/titlebarIpc';
+import { getSelectedText } from 'node-get-selected-text'
+import { getAuthStatus, askForInputMonitoringAccess } from 'node-mac-permissions'
 import { dictionary } from './dictionary';
 
 
@@ -52,12 +54,20 @@ export async  function getWordBook () {
 }
 
 async function setupGlobalShortcuts() {
+  // TODO: 可配置快捷键
   globalShortcut.register('CommandOrControl+SHIFT+C', async () => {
-    const selectedText = clipboard.readText();
+    let status = await getAuthStatus('input-monitoring')
+    if (status !== 'authorized') {
+      let inputMonitorAccess  = await askForInputMonitoringAccess();
+      if (inputMonitorAccess !== 'authorized') {
+        return ;
+      }
+    }
+    const selectedText = getSelectedText()
     if (selectedText) {
       showTranslation(selectedText);
       // 将单词添加到生词本中
-      await addToWordBook(selectedText);
+      addToWordBook(selectedText);
     }
   });
 }
