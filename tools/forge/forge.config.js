@@ -42,6 +42,13 @@ module.exports = {
       name: '@electron-forge/maker-rpm',
       config: {},
     },
+    {
+      // The DMG target builds .dmg files, which are the standard package format for macOS.
+      name: '@electron-forge/maker-dmg',
+      config: {
+        format: 'ULFO'
+      }
+    }
   ],
   // Forge Plugins
   plugins: [

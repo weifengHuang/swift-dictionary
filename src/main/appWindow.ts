@@ -2,7 +2,6 @@ import {
   app,
   BrowserWindow,
   globalShortcut,
-  clipboard,
   ipcMain,
   dialog,
   session
@@ -60,6 +59,7 @@ async function setupGlobalShortcuts() {
     if (status !== 'authorized') {
       let inputMonitorAccess  = await askForAccessibilityAccess();
       if (inputMonitorAccess !== 'authorized') {
+        log.info('not authorized')
         return ;
       }
     }

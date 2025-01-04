@@ -28,7 +28,7 @@ export const DisplayContent: FC = () => {
     return null;
   }
   if (!wordDefinition) {
-    return 'not found the definition';
+    return `not found the definition for ${selectedText}`;
   }
 
   const playSound = async (href: string) => {

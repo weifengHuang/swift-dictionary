@@ -9,6 +9,7 @@ Swift Dictionary is a desktop application that supports importing custom third-p
 - [x] View saved words in a vocabulary notebook
 - [ ] Support for vocabulary tests & practice
 - [ ] Support for exporting vocabulary lists
+- [ ] relate to image
 
 ## Usage
 
