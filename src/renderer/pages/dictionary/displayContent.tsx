@@ -65,8 +65,9 @@ export const DisplayContent: FC = () => {
             }
             if (aTagDom && aTagDom.href.startsWith('sound://')) {
               playSound(aTagDom.href);
-            } else {
-              console.error('not sound');
+            } else if (aTagDom.href.startsWith('entry://')) {
+              const word = aTagDom.href.replace('entry://', '');
+              setSelectedText(word);
             }
           }}
         />
