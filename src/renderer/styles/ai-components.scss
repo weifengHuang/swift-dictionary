@@ -64,38 +64,77 @@
 
 /* AI Search Component Styling */
 .ai-search-component {
-  .ant-input-group-compact {
-    .ant-input {
-      border-radius: 12px 0 0 12px;
-      border-right: none;
-      font-size: 16px;
-      padding: 12px 16px;
-      transition: all 0.3s ease;
-      
-      &:focus {
-        border-color: var(--app-accent-color);
-        box-shadow: 0 0 0 2px rgba(39, 149, 79, 0.1);
-      }
-    }
+  .search-input-group {
+    position: relative;
     
-    .ant-btn {
-      border-radius: 0 12px 12px 0;
-      height: auto;
-      padding: 12px 24px;
-      font-weight: 600;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border: none;
+    .ant-input-group-compact {
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border-radius: 16px;
+      overflow: hidden;
       
-      &:hover {
-        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      .search-input {
+        border-radius: 16px 0 0 16px;
+        border-right: none;
+        font-size: 16px;
+        padding: 14px 20px;
+        transition: all 0.3s ease;
+        background: white;
+        border: 2px solid #e5e7eb;
+        
+        &:focus {
+          border-color: var(--app-accent-color);
+          box-shadow: 0 0 0 3px rgba(39, 149, 79, 0.1);
+          background: white;
+        }
+        
+        &::placeholder {
+          color: #9ca3af;
+          font-weight: 400;
+        }
+      }
+      
+      .search-button {
+        border-radius: 0 16px 16px 0;
+        height: auto;
+        padding: 14px 28px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: 2px solid transparent;
+        font-size: 16px;
+        
+        &:hover:not(:disabled) {
+          background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+          transform: translateY(-1px);
+          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        &:active {
+          transform: translateY(0);
+        }
+        
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        
+        .anticon {
+          font-size: 16px;
+        }
       }
     }
   }
   
   .search-results-container {
     animation: fadeInUp 0.5s ease-out;
+    margin-top: 32px;
+  }
+  
+  /* Alert styling */
+  .ant-alert {
+    margin-top: 16px;
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   }
 }
 
