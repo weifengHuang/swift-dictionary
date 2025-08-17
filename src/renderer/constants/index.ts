@@ -1,4 +1,5 @@
 export enum RoutesEnum {
   noteBook = '/noteBook',
-  dictionary = '/dictionary'
+  dictionary = '/dictionary',
+  aiMode = '/aiMode'
 }

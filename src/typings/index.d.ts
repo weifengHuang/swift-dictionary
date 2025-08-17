@@ -14,7 +14,7 @@ interface SpeexHeader {
   nb_channels: number;
 }
 
-type IpcChanel = 'open-file-dialog-for-dictionary' | 'add-book' | 'read-book' | 'search-words' | 'lookup-word'
+type IpcChanel = 'open-file-dialog-for-dictionary' | 'add-book' | 'read-book' | 'search-words' | 'lookup-word' | 'ai-lookup-word' | 'ai-generate-image' | 'check-ai-config'
 
 interface Window {
   ipcRenderer: {
@@ -48,4 +48,57 @@ interface Window {
       data: Float32Array;
     }): ArrayBuffer;
   };
+}
+
+// AI-related type definitions
+interface AISearchResult {
+  word: string;
+  definition: string;
+  imageUrl?: string;
+  timestamp: number;
+  source: 'gemini';
+}
+
+interface AIConfig {
+  geminiApiKey: string;
+  geminiTextModel: string;
+  geminiImageModel: string;
+  geminiApiBaseUrl: string;
+}
+
+enum AIErrorType {
+  API_KEY_MISSING = 'API_KEY_MISSING',
+  API_RATE_LIMIT = 'API_RATE_LIMIT',
+  API_NETWORK_ERROR = 'API_NETWORK_ERROR',
+  API_INVALID_RESPONSE = 'API_INVALID_RESPONSE',
+  IMAGE_GENERATION_FAILED = 'IMAGE_GENERATION_FAILED'
+}
+
+interface AIError {
+  type: AIErrorType;
+  message: string;
+  details?: any;
+}
+
+interface GeminiTextResponse {
+  candidates: Array<{
+    content: {
+      parts: Array<{
+        text: string;
+      }>;
+    };
+  }>;
+}
+
+interface GeminiImageResponse {
+  candidates: Array<{
+    content: {
+      parts: Array<{
+        inlineData: {
+          mimeType: string;
+          data: string; // base64
+        };
+      }>;
+    };
+  }>;
 }

@@ -14,6 +14,7 @@ import { registerTitlebarIpc } from '@main/window/titlebarIpc';
 import { getSelectedText } from 'node-get-selected-text'
 import { getAuthStatus, askForAccessibilityAccess } from 'node-mac-permissions'
 import { dictionary } from './dictionary';
+import { GeminiService, GeminiError } from './geminiService';
 import log from 'electron-log/main'
 
 // Electron Forge automatically creates these entry points
@@ -24,6 +25,8 @@ let appWindow: BrowserWindow;
 
 let translationWindow: BrowserWindow | null = null;
 
+// Initialize Gemini service for AI functionality
+let geminiService: GeminiService | null = null;
 
 const WORD_BOOK_FILE = './wordbook.json';
 
@@ -143,6 +146,322 @@ function registerDictionaryIpc() {
   })
 }
 
+/**
+ * Initialize AI services and perform startup checks
+ */
+async function initializeAIServices() {
+  try {
+    log.info('Initializing AI services...');
+    
+    if (geminiService) {
+      // Test the configuration and connection
+      const configCheck = geminiService.validateConfiguration();
+      if (configCheck.isValid) {
+        log.info('AI service configuration is valid');
+        
+        // Test connection in background (don't block startup)
+        geminiService.testConnection()
+          .then(result => {
+            if (result.success) {
+              log.info('AI service connection test successful');
+            } else {
+              log.warn('AI service connection test failed:', result.error);
+            }
+          })
+          .catch(error => {
+            log.warn('AI service connection test error:', error);
+          });
+      } else {
+        log.warn('AI service configuration issues:', configCheck.errors);
+      }
+    } else {
+      log.warn('AI service not initialized - check your .env configuration');
+    }
+    
+  } catch (error) {
+    log.error('Error during AI services initialization:', error);
+  }
+}
+
+/**
+ * Cleanup AI services on application shutdown
+ */
+function cleanupAIServices() {
+  try {
+    log.info('Cleaning up AI services...');
+    
+    if (geminiService) {
+      // Perform any necessary cleanup
+      geminiService = null;
+      log.info('AI services cleaned up successfully');
+    }
+    
+  } catch (error) {
+    log.error('Error during AI services cleanup:', error);
+  }
+}
+
+/**
+ * Register AI-related IPC handlers for Gemini API integration
+ */
+function registerAIIpc() {
+  // Initialize Gemini service
+  try {
+    geminiService = new GeminiService();
+    log.info('GeminiService initialized successfully');
+  } catch (error) {
+    log.error('Failed to initialize GeminiService:', error);
+    geminiService = null;
+  }
+
+  /**
+   * Handle AI word lookup requests
+   * Returns comprehensive word definition using Gemini API
+   */
+  ipcMain.handle('ai-lookup-word', async (_, word: string) => {
+    try {
+      if (!geminiService) {
+        throw new Error('Gemini service is not available. Please check your API configuration.');
+      }
+
+      log.info(`AI word lookup requested for: ${word}`);
+      
+      // Validate the word input
+      const validation = geminiService.validateWord(word);
+      if (!validation.isValid) {
+        throw new Error(validation.error || 'Invalid word provided');
+      }
+
+      // Get word definition from Gemini API
+      const definition = await geminiService.getWordDefinition(word);
+      
+      log.info(`AI word lookup completed for: ${word}`);
+      return {
+        success: true,
+        data: {
+          word,
+          definition,
+          timestamp: Date.now()
+        }
+      };
+
+    } catch (error) {
+      log.error(`AI word lookup failed for "${word}":`, error);
+      
+      let errorMessage = 'An unexpected error occurred';
+      let errorType = 'UNKNOWN_ERROR';
+
+      if (error instanceof GeminiError) {
+        errorMessage = error.message;
+        errorType = error.type;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      return {
+        success: false,
+        error: {
+          type: errorType,
+          message: errorMessage,
+          word
+        }
+      };
+    }
+  });
+
+  /**
+   * Handle AI image generation requests
+   * Generates educational images for words using Gemini API
+   */
+  ipcMain.handle('ai-generate-image', async (_, word: string, definition?: string) => {
+    try {
+      if (!geminiService) {
+        throw new Error('Gemini service is not available. Please check your API configuration.');
+      }
+
+      log.info(`AI image generation requested for: ${word}`);
+      
+      // Validate the word input
+      const validation = geminiService.validateWord(word);
+      if (!validation.isValid) {
+        throw new Error(validation.error || 'Invalid word provided');
+      }
+
+      // Generate image using Gemini API
+      const imageUrl = await geminiService.generateWordImage(word, definition);
+      
+      log.info(`AI image generation completed for: ${word}`);
+      return {
+        success: true,
+        data: {
+          word,
+          imageUrl,
+          timestamp: Date.now()
+        }
+      };
+
+    } catch (error) {
+      log.error(`AI image generation failed for "${word}":`, error);
+      
+      let errorMessage = 'Failed to generate image';
+      let errorType = 'IMAGE_GENERATION_FAILED';
+
+      if (error instanceof GeminiError) {
+        errorMessage = error.message;
+        errorType = error.type;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      return {
+        success: false,
+        error: {
+          type: errorType,
+          message: errorMessage,
+          word
+        }
+      };
+    }
+  });
+
+  /**
+   * Handle AI configuration check requests
+   * Validates Gemini API configuration and connectivity
+   */
+  ipcMain.handle('check-ai-config', async () => {
+    try {
+      if (!geminiService) {
+        return {
+          success: false,
+          error: {
+            type: 'SERVICE_NOT_INITIALIZED',
+            message: 'Gemini service is not initialized. Please check your API configuration.'
+          }
+        };
+      }
+
+      log.info('Checking AI configuration...');
+      
+      // Check if service is configured
+      const isConfigured = geminiService.isConfigured();
+      if (!isConfigured) {
+        const validation = geminiService.validateConfiguration();
+        return {
+          success: false,
+          error: {
+            type: 'CONFIGURATION_ERROR',
+            message: 'AI service configuration is invalid',
+            details: validation.errors
+          }
+        };
+      }
+
+      // Test API connection
+      const connectionTest = await geminiService.testConnection();
+      if (!connectionTest.success) {
+        return {
+          success: false,
+          error: {
+            type: 'CONNECTION_ERROR',
+            message: connectionTest.error || 'Failed to connect to Gemini API'
+          }
+        };
+      }
+
+      // Get configuration details (without sensitive data)
+      const config = geminiService.getConfiguration();
+      
+      log.info('AI configuration check completed successfully');
+      return {
+        success: true,
+        data: {
+          isConfigured: true,
+          isConnected: true,
+          configuration: config,
+          timestamp: Date.now()
+        }
+      };
+
+    } catch (error) {
+      log.error('AI configuration check failed:', error);
+      
+      let errorMessage = 'Configuration check failed';
+      let errorType = 'CONFIGURATION_CHECK_FAILED';
+
+      if (error instanceof GeminiError) {
+        errorMessage = error.message;
+        errorType = error.type;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      return {
+        success: false,
+        error: {
+          type: errorType,
+          message: errorMessage
+        }
+      };
+    }
+  });
+
+  /**
+   * Handle combined AI word lookup with image generation
+   * Returns both definition and image for a word
+   */
+  ipcMain.handle('ai-lookup-word-with-image', async (_, word: string) => {
+    try {
+      if (!geminiService) {
+        throw new Error('Gemini service is not available. Please check your API configuration.');
+      }
+
+      log.info(`AI word lookup with image requested for: ${word}`);
+      
+      // Validate the word input
+      const validation = geminiService.validateWord(word);
+      if (!validation.isValid) {
+        throw new Error(validation.error || 'Invalid word provided');
+      }
+
+      // Get both definition and image
+      const result = await geminiService.getWordDefinitionWithImage(word);
+      
+      log.info(`AI word lookup with image completed for: ${word}`);
+      return {
+        success: true,
+        data: {
+          word,
+          definition: result.definition,
+          imageUrl: result.imageUrl,
+          timestamp: Date.now()
+        }
+      };
+
+    } catch (error) {
+      log.error(`AI word lookup with image failed for "${word}":`, error);
+      
+      let errorMessage = 'An unexpected error occurred';
+      let errorType = 'UNKNOWN_ERROR';
+
+      if (error instanceof GeminiError) {
+        errorMessage = error.message;
+        errorType = error.type;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      return {
+        success: false,
+        error: {
+          type: errorType,
+          message: errorMessage,
+          word
+        }
+      };
+    }
+  });
+}
+
 
 /**
  * Create Application Window
@@ -192,8 +511,13 @@ export function createAppWindow(): BrowserWindow {
   registerMainIPC();
   setupGlobalShortcuts();
   dictionary.loadDictionary();
+  
+  // Initialize AI services
+  initializeAIServices();
   // Close all windows when main window is closed
   appWindow.on('close', () => {
+    // Cleanup AI services
+    cleanupAIServices();
     appWindow = null;
     app.quit();
   });
@@ -209,5 +533,6 @@ function registerMainIPC() {
    * to Communicate asynchronously from the main process to renderer processes.
    */
   registerTitlebarIpc(appWindow);
-  registerDictionaryIpc()
+  registerDictionaryIpc();
+  registerAIIpc();
 }

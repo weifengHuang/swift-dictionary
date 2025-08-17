@@ -51,3 +51,6 @@ To start the application in development mode:
 ```
 npm run start
 ```
+
+TODO:
+support the click and jump the word , such as sake will display the sentry://saki

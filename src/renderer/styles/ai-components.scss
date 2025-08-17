@@ -1,0 +1,511 @@
+/**
+ * AI Components Styling
+ * Custom styles for AI word lookup components
+ */
+
+/* Tab Navigation Styling */
+.tab-navigation-wrapper {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  
+  .custom-tabs {
+    .ant-tabs-nav {
+      margin-bottom: 0;
+      
+      &::before {
+        display: none; /* Remove default border */
+      }
+    }
+    
+    .ant-tabs-tab {
+      padding: 12px 24px;
+      font-weight: 500;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      margin: 0 4px;
+      border: none;
+      background: transparent;
+      
+      &:hover {
+        color: var(--app-accent-color);
+        background: rgba(39, 149, 79, 0.1);
+      }
+      
+      &.ant-tabs-tab-active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: transparent;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        
+        .ant-tabs-tab-btn {
+          color: white;
+          font-weight: 600;
+        }
+      }
+      
+      .ant-tabs-tab-btn {
+        transition: color 0.3s ease;
+      }
+    }
+    
+    .ant-tabs-content-holder {
+      padding: 0;
+      display: none; /* Content handled by router */
+    }
+    
+    .ant-tabs-ink-bar {
+      display: none; /* Remove default ink bar */
+    }
+  }
+}
+
+/* AI Search Component Styling */
+.ai-search-component {
+  .ant-input-group-compact {
+    .ant-input {
+      border-radius: 12px 0 0 12px;
+      border-right: none;
+      font-size: 16px;
+      padding: 12px 16px;
+      transition: all 0.3s ease;
+      
+      &:focus {
+        border-color: var(--app-accent-color);
+        box-shadow: 0 0 0 2px rgba(39, 149, 79, 0.1);
+      }
+    }
+    
+    .ant-btn {
+      border-radius: 0 12px 12px 0;
+      height: auto;
+      padding: 12px 24px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      
+      &:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      }
+    }
+  }
+  
+  .search-results-container {
+    animation: fadeInUp 0.5s ease-out;
+  }
+}
+
+/* Word Definition Display Styling */
+.word-definition-display {
+  .ant-card-head {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border-bottom: 2px solid #e2e8f0;
+    border-radius: 12px 12px 0 0;
+    
+    .ant-card-head-title {
+      font-weight: 600;
+      color: #1a202c;
+    }
+  }
+  
+  .ant-card-body {
+    padding: 24px;
+    
+    .definition-content {
+      line-height: 1.7;
+      
+      .ant-typography {
+        margin-bottom: 16px;
+        
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+      
+      .ant-tag {
+        margin-bottom: 8px;
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-weight: 500;
+        border: none;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+    }
+  }
+}
+
+/* AI Image Display Styling */
+.ai-image-display {
+  .ant-card-head {
+    background: linear-gradient(135deg, #f0fff4 0%, #dcfce7 100%);
+    border-bottom: 2px solid #dcfce7;
+    border-radius: 12px 12px 0 0;
+    
+    .ant-card-head-title {
+      font-weight: 600;
+      color: #166534;
+    }
+  }
+  
+  .ant-card-body {
+    padding: 24px;
+    
+    .ant-image {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      }
+    }
+  }
+}
+
+/* AI Mode Page Styling */
+.ai-mode-layout {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  
+  .ant-layout-content {
+    background: transparent;
+  }
+  
+  .main-search-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Loading States */
+.loading-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-radius: 16px;
+  border: 2px solid #e2e8f0;
+  
+  .loading-content {
+    text-align: center;
+    padding: 32px;
+    
+    .ant-spin {
+      .anticon {
+        color: var(--app-accent-color);
+      }
+    }
+    
+    .loading-progress {
+      margin: 24px 0;
+      
+      .ant-progress-bg {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+    }
+    
+    .loading-steps {
+      .step-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 8px 0;
+        color: #64748b;
+        font-size: 14px;
+        
+        .anticon {
+          margin-right: 8px;
+          
+          &.text-green-500 {
+            color: #10b981;
+          }
+          
+          &.text-blue-500 {
+            color: #3b82f6;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Error States */
+.ant-alert {
+  border-radius: 12px;
+  border: none;
+  
+  &.ant-alert-error {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-left: 4px solid #ef4444;
+  }
+  
+  &.ant-alert-warning {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border-left: 4px solid #f59e0b;
+  }
+  
+  &.ant-alert-success {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-left: 4px solid #10b981;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ai-search-component {
+    .search-input-group {
+      .ant-input-group-compact {
+        display: flex;
+        flex-direction: column;
+        
+        .search-input {
+          border-radius: 12px;
+          border-right: 1px solid #d1d5db;
+          margin-bottom: 12px;
+          font-size: 16px; /* Prevent zoom on iOS */
+        }
+        
+        .search-button {
+          border-radius: 12px;
+          width: 100%;
+          height: 48px;
+        }
+      }
+    }
+  }
+  
+  .search-results-container {
+    .ant-row {
+      .ant-col {
+        margin-bottom: 20px;
+        
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+  
+  .ai-mode-layout {
+    .ant-layout-content {
+      padding: 12px;
+    }
+    
+    .main-search-card {
+      margin: 0;
+      border-radius: 16px;
+      padding: 20px;
+    }
+  }
+  
+  .word-definition-display,
+  .ai-image-display {
+    .ant-card-head {
+      padding: 12px 16px;
+      
+      .ant-card-head-title {
+        font-size: 16px;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-navigation-wrapper {
+    .custom-tabs {
+      .ant-tabs-tab {
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+    }
+  }
+  
+  .word-definition-display,
+  .ai-image-display {
+    .ant-card-body {
+      padding: 16px;
+    }
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Dark mode support */
+body.dark-mode {
+  .tab-navigation-wrapper {
+    .custom-tabs {
+      .ant-tabs-nav::before {
+        border-bottom-color: #374151;
+      }
+      
+      .ant-tabs-tab {
+        color: #d1d5db;
+        
+        &:hover {
+          color: var(--app-accent-color);
+        }
+        
+        &.ant-tabs-tab-active {
+          .ant-tabs-tab-btn {
+            color: white;
+          }
+        }
+      }
+    }
+  }
+  
+  .ai-search-component {
+    .ant-input {
+      background-color: #374151;
+      border-color: #4b5563;
+      color: #f9fafb;
+      
+      &::placeholder {
+        color: #9ca3af;
+      }
+      
+      &:focus {
+        background-color: #374151;
+        border-color: var(--app-accent-color);
+      }
+    }
+  }
+  
+  .word-definition-display {
+    .ant-card {
+      background-color: #1f2937;
+      border-color: #374151;
+    }
+    
+    .ant-card-head {
+      background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+      border-bottom-color: #4b5563;
+      
+      .ant-card-head-title {
+        color: #f9fafb;
+      }
+    }
+    
+    .ant-card-body {
+      color: #e5e7eb;
+      
+      .ant-typography {
+        color: #e5e7eb;
+      }
+    }
+  }
+  
+  .ai-image-display {
+    .ant-card {
+      background-color: #1f2937;
+      border-color: #374151;
+    }
+    
+    .ant-card-head {
+      background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+      border-bottom-color: #065f46;
+      
+      .ant-card-head-title {
+        color: #d1fae5;
+      }
+    }
+    
+    .ant-card-body {
+      color: #e5e7eb;
+    }
+  }
+  
+  .ai-mode-layout {
+    .main-search-card {
+      background: rgba(31, 41, 55, 0.95);
+      border-color: rgba(75, 85, 99, 0.2);
+    }
+  }
+  
+  .loading-card {
+    background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+    border-color: #4b5563;
+    
+    .ant-card-body {
+      color: #e5e7eb;
+    }
+    
+    .loading-content {
+      .ant-typography {
+        color: #e5e7eb;
+      }
+    }
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .ai-search-component {
+    .search-input {
+      border-width: 2px;
+    }
+    
+    .search-button {
+      border-width: 2px;
+      font-weight: 700;
+    }
+  }
+  
+  .word-definition-display,
+  .ai-image-display {
+    .ant-card {
+      border-width: 2px;
+    }
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .search-results-container {
+    animation: none;
+  }
+  
+  .animate-pulse {
+    animation: none;
+  }
+  
+  .ant-spin {
+    animation: none;
+  }
+  
+  .loading-progress {
+    .ant-progress-bg {
+      transition: none;
+    }
+  }
+}

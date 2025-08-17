@@ -4,6 +4,8 @@ import { createHashRouter, RouterProvider } from 'react-router-dom';
 import DictionaryPage from './pages/dictionary';
 import NoteBook from './pages/notebook';
 import Home from './pages/home';
+import AIMode from './pages/ai-mode';
+import ErrorBoundary from './components/ErrorBoundary';
 import './index.scss';
 import { DisplayContent } from './pages/dictionary/displayContent';
 
@@ -24,6 +26,10 @@ const router = createHashRouter([
         path: RoutesEnum.noteBook,
         element: <NoteBook />,
       },
+      {
+        path: RoutesEnum.aiMode,
+        element: <AIMode />,
+      },
     ],
   },
   {
@@ -34,7 +40,9 @@ const router = createHashRouter([
 
 // Application to Render
 const app = (
+  <ErrorBoundary>
     <RouterProvider router={router} />
+  </ErrorBoundary>
 );
 
 // Render application in DOM
