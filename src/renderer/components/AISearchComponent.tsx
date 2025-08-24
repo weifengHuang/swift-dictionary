@@ -7,11 +7,13 @@ import {
   aiSearchResultAtom, 
   aiSearchLoadingAtom,
   aiImageLoadingAtom,
-  aiWordLookupAtom,
+  aiWordLookupStreamAtom,
   aiSearchErrorAtom,
   aiImageErrorAtom,
   aiRetryLookupAtom,
-  aiCanRetryAtom
+  aiCanRetryAtom,
+  aiStreamingAtom,
+  aiStreamingTextAtom
 } from '../store';
 import debounce from 'lodash.debounce';
 import WordDefinitionDisplay from './WordDefinitionDisplay';
@@ -31,12 +33,13 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
   const [searchError] = useAtom(aiSearchErrorAtom);
   const [imageError] = useAtom(aiImageErrorAtom);
   const [canRetry] = useAtom(aiCanRetryAtom);
-  const [, performLookup] = useAtom(aiWordLookupAtom);
+  const [streaming] = useAtom(aiStreamingAtom);
+  const [streamingText] = useAtom(aiStreamingTextAtom);
+  const [, performLookup] = useAtom(aiWordLookupStreamAtom);
   const [, performRetry] = useAtom(aiRetryLookupAtom);
   
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const [inputError, setInputError] = useState<string | null>(null);
-  const [showSuccessMessage, setShowSuccessMessage] = useState<boolean>(false);
 
   // Debounced search function
   const debouncedSearch = useCallback(
@@ -61,7 +64,6 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
 
       try {
         setInputError(null);
-        setShowSuccessMessage(false);
         setSearchQuery(query.trim());
         await performLookup(query.trim());
       } catch (err) {
@@ -85,7 +87,6 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
     
     try {
       setInputError(null);
-      setShowSuccessMessage(false);
       setSearchQuery(localQuery.trim());
       await performLookup(localQuery.trim());
     } catch (err) {
@@ -101,26 +102,6 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
     }
   }, [handleSearch]);
 
-  // Show success message when search completes successfully
-  useEffect(() => {
-    if (searchResult && !isLoading && !searchError) {
-      setShowSuccessMessage(true);
-      
-      // Show success toast notification
-      message.success({
-        content: `Successfully found definition for "${searchResult.word}"`,
-        duration: 3,
-        key: 'search-success'
-      });
-      
-      // Hide success message after 3 seconds
-      const timer = setTimeout(() => {
-        setShowSuccessMessage(false);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [searchResult, isLoading, searchError]);
-
   // Show error toast notifications
   useEffect(() => {
     if (searchError && !isLoading) {
@@ -132,7 +113,7 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
     }
   }, [searchError, isLoading]);
 
-  // Show image generation notifications
+  // Show image generation error notifications only
   useEffect(() => {
     if (imageError && !isImageLoading) {
       message.warning({
@@ -140,14 +121,8 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
         duration: 4,
         key: 'image-error'
       });
-    } else if (searchResult?.imageUrl && !isImageLoading && !imageError) {
-      message.success({
-        content: 'Visual aid generated successfully!',
-        duration: 2,
-        key: 'image-success'
-      });
     }
-  }, [imageError, isImageLoading, searchResult?.imageUrl]);
+  }, [imageError, isImageLoading]);
 
   // Cleanup debounced function on unmount
   useEffect(() => {
@@ -214,22 +189,10 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
             closable
           />
         )}
-
-        {showSuccessMessage && searchResult && !isLoading && (
-          <Alert
-            message="Search Completed Successfully!"
-            description={`Found comprehensive definition and visual aid for "${searchResult.word}"`}
-            type="success"
-            showIcon
-            className="mt-3"
-            closable
-            onClose={() => setShowSuccessMessage(false)}
-          />
-        )}
       </div>
 
-      {/* Enhanced Loading state */}
-      {isLoading && (
+      {/* Enhanced Loading state - only show when not streaming */}
+      {isLoading && !streaming && (
         <Card className="loading-card mb-8">
           <div className="loading-content">
             <div className="mb-6">
@@ -283,28 +246,30 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
         </Card>
       )}
 
-      {/* Search results */}
-      {searchResult && !isLoading && (
+      {/* Search results - show when streaming or when we have results */}
+      {(searchResult || streaming) && (
         <div className="search-results-container">
           <Row gutter={[24, 24]}>
             <Col xs={24} lg={12}>
               <WordDefinitionDisplay
-                definition={searchResult.definition}
-                word={searchResult.word}
-                timestamp={searchResult.timestamp}
+                definition={searchResult?.definition || ''}
+                word={searchResult?.word || searchQuery}
+                timestamp={searchResult?.timestamp}
                 loading={false}
                 error={searchError}
-                onRetry={() => performLookup(searchResult.word)}
+                onRetry={() => performLookup(searchResult?.word || searchQuery)}
+                streaming={streaming}
+                streamingText={streamingText}
                 className="h-full"
               />
             </Col>
             <Col xs={24} lg={12}>
               <AIImageDisplay
-                imageUrl={searchResult.imageUrl}
-                word={searchResult.word}
+                imageUrl={searchResult?.imageUrl}
+                word={searchResult?.word || searchQuery}
                 loading={isImageLoading}
                 error={imageError}
-                onRetry={() => performLookup(searchResult.word)}
+                onRetry={() => performLookup(searchResult?.word || searchQuery)}
                 className="h-full"
               />
             </Col>
@@ -313,7 +278,7 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
       )}
 
       {/* No results state */}
-      {!searchResult && !isLoading && searchQuery && (
+      {!searchResult && !isLoading && !streaming && searchQuery && (
         <div className="text-center py-12">
           <div className="text-gray-400 mb-4">
             <SearchOutlined style={{ fontSize: 48 }} />

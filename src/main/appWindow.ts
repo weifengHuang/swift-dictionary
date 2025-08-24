@@ -288,7 +288,7 @@ function registerAIIpc() {
       }
 
       // Generate image using Gemini API
-      const imageUrl = await geminiService.generateWordImage(word, definition);
+      const imageUrl = await geminiService.generateWordImage(word);
       
       log.info(`AI image generation completed for: ${word}`);
       return {
@@ -312,6 +312,83 @@ function registerAIIpc() {
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
+
+      return {
+        success: false,
+        error: {
+          type: errorType,
+          message: errorMessage,
+          word
+        }
+      };
+    }
+  });
+
+  /**
+   * Handle AI word lookup with streaming support
+   * Returns definition chunks as they arrive from the AI model
+   */
+  ipcMain.handle('ai-lookup-word-stream', async (event, word: string) => {
+    try {
+      if (!geminiService) {
+        throw new Error('Gemini service is not available. Please check your API configuration.');
+      }
+      log.info(`AI streaming word lookup requested for: ${word}`);
+      
+      // Validate the word input
+      const validation = geminiService.validateWord(word);
+      if (!validation.isValid) {
+        throw new Error(validation.error || 'Invalid word provided');
+      }
+
+      // Send streaming chunks to the renderer
+      const definition = await geminiService.getWordDefinitionStream(word, (chunk) => {
+        event.sender.send('ai-stream-chunk', {
+          word,
+          chunk,
+          timestamp: Date.now()
+        });
+      });
+      
+      log.info(`AI streaming word lookup completed for: ${word}`);
+      
+      // Send final result
+      event.sender.send('ai-stream-complete', {
+        word,
+        definition,
+        timestamp: Date.now()
+      });
+
+      return {
+        success: true,
+        data: {
+          word,
+          definition,
+          timestamp: Date.now()
+        }
+      };
+      
+    } catch (error) {
+      log.error(`AI streaming word lookup failed for "${word}":`, error);
+      
+      let errorMessage = 'An unexpected error occurred';
+      let errorType = 'UNKNOWN_ERROR';
+      if (error instanceof GeminiError) {
+        errorMessage = error.message;
+        errorType = error.type;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      // Send error to renderer
+      event.sender.send('ai-stream-error', {
+        word,
+        error: {
+          type: errorType,
+          message: errorMessage
+        },
+        timestamp: Date.now()
+      });
 
       return {
         success: false,

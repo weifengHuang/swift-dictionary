@@ -1,8 +1,10 @@
 import React from 'react';
-import { Card, Typography, Skeleton, Alert, Tag, Space, Button, Spin } from 'antd';
+import { Card, Typography, Skeleton, Alert, Space, Button, Spin } from 'antd';
 import { BookOutlined, ClockCircleOutlined, ReloadOutlined, ExclamationCircleOutlined, LoadingOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
-const { Title, Paragraph, Text } = Typography;
+const { Title, Text } = Typography;
 
 interface WordDefinitionDisplayProps {
   definition: string;
@@ -12,6 +14,8 @@ interface WordDefinitionDisplayProps {
   error?: AIError | null;
   className?: string;
   onRetry?: () => void;
+  streaming?: boolean;
+  streamingText?: string;
 }
 
 export const WordDefinitionDisplay: React.FC<WordDefinitionDisplayProps> = ({
@@ -21,7 +25,9 @@ export const WordDefinitionDisplay: React.FC<WordDefinitionDisplayProps> = ({
   loading = false,
   error = null,
   className = '',
-  onRetry
+  onRetry,
+  streaming = false,
+  streamingText = ''
 }) => {
   // Format timestamp for display
   const formatTimestamp = (ts?: number) => {
@@ -30,50 +36,77 @@ export const WordDefinitionDisplay: React.FC<WordDefinitionDisplayProps> = ({
     return date.toLocaleString();
   };
 
-  // Format definition text for better readability
-  const formatDefinition = (text: string) => {
-    if (!text) return '';
+  // Render markdown content with custom components
+  const renderMarkdownContent = (text: string, isStreaming = false) => {
+    // In streaming mode, always show container even if text is empty
+    if (!text && !isStreaming) return null;
     
-    // Split by common definition separators and format
-    const lines = text.split('\n').filter(line => line.trim());
-    
-    return lines.map((line, index) => {
-      const trimmedLine = line.trim();
-      
-      // Check if line looks like a numbered definition
-      if (/^\d+\./.test(trimmedLine)) {
-        return (
-          <div key={index} className="mb-2">
-            <Text strong className="text-blue-600">{trimmedLine}</Text>
-          </div>
-        );
-      }
-      
-      // Check if line looks like a part of speech or category
-      if (/^(noun|verb|adjective|adverb|preposition|conjunction|interjection|pronoun)/i.test(trimmedLine)) {
-        return (
-          <div key={index} className="mb-2">
-            <Tag color="blue" className="mb-1">{trimmedLine}</Tag>
-          </div>
-        );
-      }
-      
-      // Check if line contains examples (usually in quotes or parentheses)
-      if (/["'()]/.test(trimmedLine)) {
-        return (
-          <div key={index} className="mb-2">
-            <Text italic className="text-gray-600">{trimmedLine}</Text>
-          </div>
-        );
-      }
-      
-      // Regular definition text
-      return (
-        <Paragraph key={index} className="mb-2">
-          {trimmedLine}
-        </Paragraph>
-      );
-    });
+    return (
+      <div className={`markdown-content ${isStreaming ? 'streaming' : ''}`}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            h1: ({ children, ...props }) => (
+              <Typography.Title level={2} className="text-blue-600 mb-4" {...props}>
+                {children}
+              </Typography.Title>
+            ),
+            h2: ({ children, ...props }) => (
+              <Typography.Title level={3} className="text-blue-700 mb-3" {...props}>
+                {children}
+              </Typography.Title>
+            ),
+            h3: ({ children, ...props }) => (
+              <Typography.Title level={4} className="text-blue-800 mb-2" {...props}>
+                {children}
+              </Typography.Title>
+            ),
+            p: ({ children, ...props }) => (
+              <Typography.Paragraph className="mb-3" {...props}>
+                {children}
+              </Typography.Paragraph>
+            ),
+            strong: ({ children, ...props }) => (
+              <Text strong className="text-blue-600" {...props}>
+                {children}
+              </Text>
+            ),
+            em: ({ children, ...props }) => (
+              <Text italic className="text-gray-600" {...props}>
+                {children}
+              </Text>
+            ),
+            ul: ({ children, ...props }) => (
+              <ul className="list-disc list-inside mb-3 space-y-1" {...props}>
+                {children}
+              </ul>
+            ),
+            ol: ({ children, ...props }) => (
+              <ol className="list-decimal list-inside mb-3 space-y-1" {...props}>
+                {children}
+              </ol>
+            ),
+            li: ({ children, ...props }) => (
+              <li className="mb-1" {...props}>
+                {children}
+              </li>
+            ),
+            code: ({ children, ...props }) => (
+              <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono" {...props}>
+                {children}
+              </code>
+            ),
+            blockquote: ({ children, ...props }) => (
+              <blockquote className="border-l-4 border-blue-300 pl-4 italic text-gray-600 mb-3" {...props}>
+                {children}
+              </blockquote>
+            )
+          }}
+        >
+          {text || (isStreaming ? '' : '')}
+        </ReactMarkdown>
+      </div>
+    );
   };
 
   // Enhanced Loading state
@@ -111,7 +144,7 @@ export const WordDefinitionDisplay: React.FC<WordDefinitionDisplayProps> = ({
   // Get error message and type for display
   const getErrorDisplay = (error: AIError) => {
     let alertType: 'error' | 'warning' | 'info' = 'error';
-    let icon = <ExclamationCircleOutlined />;
+    const icon = <ExclamationCircleOutlined />;
     
     switch (error.type) {
       case 'API_KEY_MISSING':
@@ -148,7 +181,7 @@ export const WordDefinitionDisplay: React.FC<WordDefinitionDisplayProps> = ({
               )}
               {error.type === 'API_RATE_LIMIT' && (
                 <div className="text-sm text-gray-600">
-                  You've reached the API rate limit. Please wait a few minutes before trying again.
+                  You have reached the API rate limit. Please wait a few minutes before trying again.
                 </div>
               )}
               {error.type === 'API_NETWORK_ERROR' && (
@@ -173,8 +206,8 @@ export const WordDefinitionDisplay: React.FC<WordDefinitionDisplayProps> = ({
     );
   }
 
-  // No definition available
-  if (!definition || !word) {
+  // No definition available - but allow streaming mode
+  if (!word || (!definition && !streaming)) {
     return null;
   }
 
@@ -184,7 +217,7 @@ export const WordDefinitionDisplay: React.FC<WordDefinitionDisplayProps> = ({
       title={
         <Space align="center">
           <BookOutlined className="text-blue-500" />
-          <Title level={4} className="mb-0">
+          <Title level={4} className="">
             {word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()}
           </Title>
         </Space>
@@ -203,22 +236,34 @@ export const WordDefinitionDisplay: React.FC<WordDefinitionDisplayProps> = ({
       <div className="definition-content">
         {/* Main definition content */}
         <div className="definition-text">
-          {formatDefinition(definition)}
+          {streaming ? (
+            <div>
+              <div className="mb-3 text-sm text-blue-600">
+                <LoadingOutlined className="mr-2" />
+                AI is generating definition...
+              </div>
+              {streamingText && renderMarkdownContent(streamingText, true)}
+              {!streamingText && (
+                <div className="text-gray-500 italic">
+                  Waiting for response...
+                </div>
+              )}
+            </div>
+          ) : (
+            renderMarkdownContent(definition)
+          )}
         </div>
         
-        {/* Source attribution with success indicator */}
+        {/* Success indicator */}
         <div className="mt-4 pt-3 border-t border-gray-200">
-          <Space align="center" className="w-full justify-between">
-            <Text type="secondary" className="text-xs">
-              Definition provided by Gemini AI
-            </Text>
+          <div className="flex justify-end">
             <Space align="center" className="text-green-600">
               <CheckCircleOutlined className="text-xs" />
               <Text type="secondary" className="text-xs">
                 Successfully loaded
               </Text>
             </Space>
-          </Space>
+          </div>
         </div>
       </div>
     </Card>

@@ -83,7 +83,9 @@
     "node-mac-permissions": "^2.4.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.23.1"
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^6.23.1",
+    "remark-gfm": "^4.0.1"
   },
   "engines": {
     "node": ">=20"

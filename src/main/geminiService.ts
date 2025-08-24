@@ -275,6 +275,72 @@ export class GeminiService {
     }
 
     /**
+     * Get detailed English definition and explanation for a word with streaming support
+     * @param word - The English word to look up
+     * @param onChunk - Callback function for streaming chunks
+     * @returns Promise<string> - Formatted definition and explanation
+     */
+    public async getWordDefinitionStream(
+        word: string, 
+        onChunk: (chunk: string) => void
+    ): Promise<string> {
+        try {
+            if (!this.isConfigured()) {
+                throw new GeminiError(
+                    GeminiErrorType.CONFIGURATION_ERROR,
+                    'Gemini service is not properly configured'
+                );
+            }
+
+            if (!word || word.trim().length === 0) {
+                throw new GeminiError(
+                    GeminiErrorType.API_INVALID_RESPONSE,
+                    'Word parameter is required and cannot be empty'
+                );
+            }
+
+            const cleanWord = word.trim().toLowerCase();
+            log.info(`Looking up word definition with streaming for: ${cleanWord}`);
+
+            // Create a comprehensive prompt for word definition
+            const prompt = this.buildWordDefinitionPrompt(cleanWord);
+
+            const model = this.getTextModel();
+            const result = await model.generateContentStream(prompt);
+            
+            let fullText = '';
+            
+            // Process streaming chunks
+            for await (const chunk of result.stream) {
+                const chunkText = chunk.text();
+                if (chunkText) {
+                    fullText += chunkText;
+                    // Send the chunk to the callback
+                    onChunk(fullText);
+                }
+            }
+
+            if (!fullText || fullText.trim().length === 0) {
+                throw new GeminiError(
+                    GeminiErrorType.API_INVALID_RESPONSE,
+                    'Empty response received from Gemini API'
+                );
+            }
+
+            const formattedDefinition = this.formatWordDefinition(fullText, cleanWord);
+            log.info(`Successfully retrieved streaming definition for word: ${cleanWord}`);
+
+            return formattedDefinition;
+
+        } catch (error) {
+            if (error instanceof GeminiError) {
+                throw error;
+            }
+            throw this.handleApiError(error);
+        }
+    }
+
+    /**
      * Get detailed English definition and explanation for a word
      * @param word - The English word to look up
      * @returns Promise<string> - Formatted definition and explanation
@@ -435,9 +501,9 @@ Word: ${word}`;
      * Generate an educational image related to a word
      * @param word - The English word to generate an image for
      * @param definition - Optional definition context to improve image generation
-     * @returns Promise<string> - Base64 encoded image data
+     * @returns Promise<string> - Base64 encoded image data URL
      */
-    public async generateWordImage(word: string, definition?: string): Promise<string> {
+    public async generateWordImage(word: string): Promise<string> {
         try {
             if (!this.isConfigured()) {
                 throw new GeminiError(
@@ -458,23 +524,43 @@ Word: ${word}`;
             log.info(`Generating image for word: ${cleanWord}`);
 
             // Build image generation prompt
-            const prompt = this.buildImageGenerationPrompt(cleanWord, definition);
+            const prompt = this.buildImageGenerationPrompt(cleanWord);
+            
+            // Use direct API call to ensure proper response modalities configuration
+            const apiKey = this.config!.apiKey;
+            const imageModel = this.config!.imageModel;
+            
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        role: 'user',
+                        parts: [{ text: prompt }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["TEXT", "IMAGE"]
+                    }
+                })
+            });
 
-            const model = this.getImageModel();
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-
-            if (!response) {
+            if (!response.ok) {
+                const errorData = await response.json();
+                log.error(`Image generation API error: ${response.status} ${response.statusText}`, errorData);
                 throw new GeminiError(
                     GeminiErrorType.IMAGE_GENERATION_FAILED,
-                    'No response received from Gemini image generation API'
+                    `Image generation failed: ${errorData.error?.message || response.statusText}`
                 );
             }
 
+            const data = await response.json();
+            
             // Extract image data from response
-            const imageData = this.extractImageData(response);
-
-            if (!imageData) {
+            const imageUrl = this.extractImageDataFromResponse(data);
+            
+            if (!imageUrl) {
                 throw new GeminiError(
                     GeminiErrorType.IMAGE_GENERATION_FAILED,
                     'No image data found in API response'
@@ -482,7 +568,7 @@ Word: ${word}`;
             }
 
             log.info(`Successfully generated image for word: ${cleanWord}`);
-            return imageData;
+            return imageUrl;
 
         } catch (error) {
             if (error instanceof GeminiError) {
@@ -491,10 +577,8 @@ Word: ${word}`;
 
             // Handle image generation specific errors
             const geminiError = this.handleApiError(error);
-            if (geminiError.type === GeminiErrorType.API_INVALID_RESPONSE) {
-                geminiError.type = GeminiErrorType.IMAGE_GENERATION_FAILED;
-                geminiError.message = 'Failed to generate image: ' + geminiError.message;
-            }
+            geminiError.type = GeminiErrorType.IMAGE_GENERATION_FAILED;
+            geminiError.message = 'Image generation failed: ' + geminiError.message;
             throw geminiError;
         }
     }
@@ -535,7 +619,7 @@ The image should help someone understand and remember the meaning of "${word}" v
     private extractKeyConceptsFromDefinition(definition: string): string | null {
         try {
             // Look for the main definition section
-            const definitionMatch = definition.match(/\*\*Definition\*\*:?\s*([^\n\*]+)/i);
+            const definitionMatch = definition.match(/\*\*Definition\*\*:?\s*([^\n*]+)/i);
             if (definitionMatch) {
                 return definitionMatch[1].trim();
             }
@@ -559,9 +643,15 @@ The image should help someone understand and remember the meaning of "${word}" v
     /**
      * Extract base64 image data from Gemini API response
      */
-    private extractImageData(response: any): string | null {
+    private extractImageDataFromResponse(data: unknown): string | null {
         try {
-            // Navigate the response structure to find image data
+            // Type guard to ensure we have the expected structure
+            if (!data || typeof data !== 'object' || !('candidates' in data)) {
+                log.error('Invalid response structure');
+                return null;
+            }
+
+            const response = data as { candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string }; text?: string }> } }> };
             const candidates = response.candidates;
             if (!candidates || !Array.isArray(candidates) || candidates.length === 0) {
                 log.error('No candidates found in image generation response');
@@ -648,7 +738,7 @@ The image should help someone understand and remember the meaning of "${word}" v
 
             try {
                 // Try to generate image (don't fail the whole operation if image fails)
-                imageUrl = await this.generateWordImage(word, definition);
+                imageUrl = await this.generateWordImage(word);
             } catch (imageError) {
                 log.warn(`Image generation failed for word "${word}":`, imageError);
                 // Continue without image - this is not a critical failure
@@ -660,8 +750,101 @@ The image should help someone understand and remember the meaning of "${word}" v
             };
 
         } catch (error) {
+            log.error('Error in getWordDefinitionWithImage:', error);
             // If definition fails, the whole operation fails
             throw error;
+        }
+    }
+
+    /**
+     * Test method to generate image with word "test" using image generation model
+     * This test uses the configured image model to attempt image generation
+     */
+    public async testImageGeneration(): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
+        const testWord = "test";
+        
+        try {
+            if (!this.isConfigured()) {
+                return {
+                    success: false,
+                    error: 'Gemini service is not properly configured'
+                };
+            }
+
+            log.info(`Testing image generation with word: ${testWord}`);
+
+            // Create a specific prompt for image generation
+            const prompt = `Generate a simple, educational illustration for the word "${testWord}". 
+            The image should show someone taking an exam or quiz, with papers and pencils, 
+            representing the concept of testing or examination. 
+            Make it clean, colorful, and suitable for educational purposes.`;
+
+            // Use direct API call to ensure proper response modalities configuration
+            const apiKey = this.config!.apiKey;
+            const imageModel = this.config!.imageModel;
+            
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        role: 'user',
+                        parts: [{ text: prompt }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["TEXT", "IMAGE"]
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                return {
+                    success: false,
+                    error: `API error: ${response.status} ${response.statusText} - ${errorData.error?.message || 'Unknown error'}`
+                };
+            }
+
+            const data = await response.json();
+            
+            // Try to extract image data from response
+            const imageData = this.extractImageDataFromResponse(data);
+            
+            if (imageData) {
+                log.info(`Successfully generated test image for word: ${testWord}`);
+                return {
+                    success: true,
+                    imageUrl: imageData
+                };
+            } else {
+                // If no image data, return the text response for debugging
+                let textResponse = '';
+                // Type guard and safe access to response data
+                if (data && typeof data === 'object' && 'candidates' in data) {
+                    const response = data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+                    if (response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts) {
+                        for (const part of response.candidates[0].content.parts) {
+                            if (part.text) {
+                                textResponse += part.text;
+                            }
+                        }
+                    }
+                }
+                log.warn('No image data in response, got text instead:', textResponse);
+                return {
+                    success: false,
+                    error: `Image generation not supported. Response: ${textResponse || 'Empty response'}`
+                };
+            }
+
+        } catch (error) {
+            log.error('Test image generation failed:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
+            };
         }
     }
 }

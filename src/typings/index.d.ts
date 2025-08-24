@@ -14,11 +14,14 @@ interface SpeexHeader {
   nb_channels: number;
 }
 
-type IpcChanel = 'open-file-dialog-for-dictionary' | 'add-book' | 'read-book' | 'search-words' | 'lookup-word' | 'ai-lookup-word' | 'ai-generate-image' | 'check-ai-config'
+type IpcChanel = 'open-file-dialog-for-dictionary' | 'add-book' | 'read-book' | 'search-words' | 'lookup-word' | 'ai-lookup-word' | 'ai-generate-image' | 'check-ai-config' | 'ai-lookup-word-with-image' | 'ai-lookup-word-stream'
 
 interface Window {
   ipcRenderer: {
     invoke:<T>(channel: IpcChanel, ...args: unknown[]) => Promise<T>;
+    on(channel: string, listener: (event: any, ...args: any[]) => void): void;
+    removeListener(channel: string, listener: (event: any, ...args: any[]) => void): void;
+    send(channel: string, ...args: any[]): void;
   };
   SpeexComment: unknown;
 
@@ -101,4 +104,47 @@ interface GeminiImageResponse {
       }>;
     };
   }>;
+}
+
+// IPC Response types
+interface AILookupResponse {
+  success: boolean;
+  data?: {
+    word: string;
+    definition: string;
+    timestamp: number;
+  };
+  error?: AIError;
+}
+
+interface AIImageResponse {
+  success: boolean;
+  data?: {
+    word: string;
+    imageUrl: string;
+    timestamp: number;
+  };
+  error?: AIError;
+}
+
+interface AIConfigCheckResponse {
+  success: boolean;
+  data?: {
+    isConfigured: boolean;
+    isConnected: boolean;
+    configuration: any;
+    timestamp: number;
+  };
+  error?: AIError;
+}
+
+interface AILookupWithImageResponse {
+  success: boolean;
+  data?: {
+    word: string;
+    definition: string;
+    imageUrl: string;
+    timestamp: number;
+  };
+  error?: AIError;
 }

@@ -75,37 +75,41 @@
       .search-input {
         border-radius: 16px 0 0 16px;
         border-right: none;
-        font-size: 16px;
-        padding: 14px 20px;
+        font-size: 18px;
+        padding: 16px 24px;
         transition: all 0.3s ease;
         background: white;
         border: 2px solid #e5e7eb;
+        font-weight: 500;
         
         &:focus {
-          border-color: var(--app-accent-color);
-          box-shadow: 0 0 0 3px rgba(39, 149, 79, 0.1);
+          border-color: #3B82F6;
+          box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
           background: white;
         }
         
         &::placeholder {
           color: #9ca3af;
           font-weight: 400;
+          font-size: 16px;
         }
       }
       
       .search-button {
         border-radius: 0 16px 16px 0;
         height: auto;
-        padding: 14px 28px;
+        padding: 16px 32px;
         font-weight: 600;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: 2px solid transparent;
+        background: #3B82F6;
+        border: 2px solid #3B82F6;
+        color: white;
         font-size: 16px;
         
         &:hover:not(:disabled) {
-          background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+          background: #2563EB;
+          border-color: #2563EB;
           transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+          box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
         }
         
         &:active {
@@ -118,7 +122,7 @@
         }
         
         .anticon {
-          font-size: 16px;
+          font-size: 18px;
         }
       }
     }
@@ -140,14 +144,38 @@
 
 /* Word Definition Display Styling */
 .word-definition-display {
+  .ant-card {
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+      transform: translateY(-2px);
+    }
+  }
+  
   .ant-card-head {
     background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    border-bottom: 2px solid #e2e8f0;
-    border-radius: 12px 12px 0 0;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 20px 24px;
     
     .ant-card-head-title {
       font-weight: 600;
       color: #1a202c;
+      font-size: 18px;
+      
+      .anticon {
+        margin-right: 8px;
+        color: #3b82f6;
+      }
+    }
+    
+    .ant-card-extra {
+      color: #6b7280;
+      font-size: 14px;
     }
   }
   
@@ -155,24 +183,100 @@
     padding: 24px;
     
     .definition-content {
-      line-height: 1.7;
+      line-height: 1.8;
       
-      .ant-typography {
-        margin-bottom: 16px;
+      .definition-text {
+        margin-bottom: 20px;
         
-        &:last-child {
-          margin-bottom: 0;
+        .ant-typography {
+          margin-bottom: 12px;
+          color: #374151;
+          
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+        
+        .ant-tag {
+          margin: 4px 8px 8px 0;
+          padding: 6px 14px;
+          border-radius: 20px;
+          font-weight: 500;
+          border: none;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          font-size: 13px;
+        }
+        
+        // Markdown content styling
+        .markdown-content {
+          h1, h2, h3, h4, h5, h6 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+            
+            &:first-child {
+              margin-top: 0;
+            }
+          }
+          
+          p {
+            margin-bottom: 16px;
+            line-height: 1.7;
+            color: #374151;
+          }
+          
+          ul, ol {
+            margin-bottom: 16px;
+            padding-left: 24px;
+            
+            li {
+              margin-bottom: 8px;
+              line-height: 1.6;
+            }
+          }
+          
+          blockquote {
+            margin: 16px 0;
+            padding: 16px 20px;
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: 8px;
+          }
+          
+          code {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.875em;
+          }
+          
+          strong {
+            font-weight: 600;
+          }
+          
+          // Streaming animation
+          &.streaming {
+            position: relative;
+            
+            // Blinking cursor effect
+            &::after {
+              content: '';
+              display: inline-block;
+              width: 2px;
+              height: 1.2em;
+              background-color: #3b82f6;
+              animation: blink 1s infinite;
+              margin-left: 2px;
+              vertical-align: text-bottom;
+            }
+          }
         }
       }
       
-      .ant-tag {
-        margin-bottom: 8px;
-        padding: 4px 12px;
-        border-radius: 16px;
-        font-weight: 500;
-        border: none;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+      /* Source attribution styling */
+      .border-t {
+        border-top: 1px solid #e5e7eb;
+        padding-top: 16px;
+        margin-top: 20px;
       }
     }
   }
@@ -180,49 +284,97 @@
 
 /* AI Image Display Styling */
 .ai-image-display {
+  .ant-card {
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+      transform: translateY(-2px);
+    }
+  }
+  
   .ant-card-head {
     background: linear-gradient(135deg, #f0fff4 0%, #dcfce7 100%);
-    border-bottom: 2px solid #dcfce7;
-    border-radius: 12px 12px 0 0;
+    border-bottom: 1px solid #dcfce7;
+    padding: 20px 24px;
     
     .ant-card-head-title {
       font-weight: 600;
       color: #166534;
+      font-size: 18px;
+      
+      .anticon {
+        margin-right: 8px;
+        color: #10b981;
+      }
+    }
+    
+    .ant-card-extra {
+      .ant-btn {
+        border: none;
+        background: rgba(16, 185, 129, 0.1);
+        color: #059669;
+        border-radius: 8px;
+        
+        &:hover {
+          background: rgba(16, 185, 129, 0.2);
+          color: #047857;
+        }
+      }
     }
   }
   
   .ant-card-body {
     padding: 24px;
     
-    .ant-image {
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
+    .image-content {
+      .ant-image {
+        width: 100%;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+        
+        img {
+          border-radius: 12px;
+        }
+      }
       
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      /* Placeholder styling */
+      .flex.flex-col.items-center.justify-center {
+        background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+        border: 2px dashed #d1d5db;
+        border-radius: 12px;
+        padding: 32px;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          border-color: #9ca3af;
+          background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        }
+        
+        .anticon {
+          color: #9ca3af;
+          margin-bottom: 12px;
+        }
+      }
+      
+      /* Source attribution styling */
+      .border-t {
+        border-top: 1px solid #e5e7eb;
+        padding-top: 16px;
+        margin-top: 20px;
       }
     }
-  }
-}
-
-/* AI Mode Page Styling */
-.ai-mode-layout {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
-  
-  .ant-layout-content {
-    background: transparent;
-  }
-  
-  .main-search-card {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 }
 
@@ -375,6 +527,15 @@
 }
 
 /* Animations */
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
