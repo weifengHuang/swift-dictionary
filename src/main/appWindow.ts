@@ -328,78 +328,95 @@ function registerAIIpc() {
    * Handle AI word lookup with streaming support
    * Returns definition chunks as they arrive from the AI model
    */
-  ipcMain.handle('ai-lookup-word-stream', async (event, word: string) => {
-    try {
-      if (!geminiService) {
-        throw new Error('Gemini service is not available. Please check your API configuration.');
-      }
-      log.info(`AI streaming word lookup requested for: ${word}`);
-      
-      // Validate the word input
-      const validation = geminiService.validateWord(word);
-      if (!validation.isValid) {
-        throw new Error(validation.error || 'Invalid word provided');
-      }
+  ipcMain.handle(
+    'ai-lookup-word-stream',
+    async (event, payload: { word: string; requestId?: number }) => {
+      const request = payload ?? { word: '', requestId: undefined };
+      const word = typeof request.word === 'string' ? request.word : '';
+      const requestId = typeof request.requestId === 'number' ? request.requestId : undefined;
 
-      // Send streaming chunks to the renderer
-      const definition = await geminiService.getWordDefinitionStream(word, (chunk) => {
-        event.sender.send('ai-stream-chunk', {
-          word,
-          chunk,
-          timestamp: Date.now()
+      try {
+        if (!word) {
+          throw new Error('Word parameter is required for AI lookup');
+        }
+
+        if (!geminiService) {
+          throw new Error('Gemini service is not available. Please check your API configuration.');
+        }
+
+        const requestLabel = requestId ? ` [requestId=${requestId}]` : '';
+        log.info(`AI streaming word lookup requested for: ${word}${requestLabel}`);
+
+        // Validate the word input
+        const validation = geminiService.validateWord(word);
+        if (!validation.isValid) {
+          throw new Error(validation.error || 'Invalid word provided');
+        }
+
+        // Send streaming chunks to the renderer
+        const definition = await geminiService.getWordDefinitionStream(word, (chunk) => {
+          event.sender.send('ai-stream-chunk', {
+            word,
+            chunk,
+            timestamp: Date.now(),
+            requestId
+          });
         });
-      });
-      
-      log.info(`AI streaming word lookup completed for: ${word}`);
-      
-      // Send final result
-      event.sender.send('ai-stream-complete', {
-        word,
-        definition,
-        timestamp: Date.now()
-      });
 
-      return {
-        success: true,
-        data: {
+        log.info(`AI streaming word lookup completed for: ${word}${requestLabel}`);
+
+        // Send final result
+        event.sender.send('ai-stream-complete', {
           word,
           definition,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          requestId
+        });
+
+        return {
+          success: true,
+          data: {
+            word,
+            definition,
+            timestamp: Date.now(),
+            requestId
+          }
+        };
+      } catch (error) {
+        const requestFailureLabel = requestId ? ` [requestId=${requestId}]` : '';
+        log.error(`AI streaming word lookup failed for "${word}"${requestFailureLabel}:`, error);
+
+        let errorMessage = 'An unexpected error occurred';
+        let errorType = 'UNKNOWN_ERROR';
+        if (error instanceof GeminiError) {
+          errorMessage = error.message;
+          errorType = error.type;
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
         }
-      };
-      
-    } catch (error) {
-      log.error(`AI streaming word lookup failed for "${word}":`, error);
-      
-      let errorMessage = 'An unexpected error occurred';
-      let errorType = 'UNKNOWN_ERROR';
-      if (error instanceof GeminiError) {
-        errorMessage = error.message;
-        errorType = error.type;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
+
+        // Send error to renderer
+        event.sender.send('ai-stream-error', {
+          word,
+          error: {
+            type: errorType,
+            message: errorMessage
+          },
+          timestamp: Date.now(),
+          requestId
+        });
+
+        return {
+          success: false,
+          error: {
+            type: errorType,
+            message: errorMessage,
+            word
+          }
+        };
       }
-
-      // Send error to renderer
-      event.sender.send('ai-stream-error', {
-        word,
-        error: {
-          type: errorType,
-          message: errorMessage
-        },
-        timestamp: Date.now()
-      });
-
-      return {
-        success: false,
-        error: {
-          type: errorType,
-          message: errorMessage,
-          word
-        }
-      };
     }
-  });
+  );
 
   /**
    * Handle AI configuration check requests

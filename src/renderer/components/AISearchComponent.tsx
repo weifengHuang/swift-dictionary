@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Input, Button, Space, Typography, Spin, Alert, Row, Col, Progress, Card, message } from 'antd';
 import { SearchOutlined, LoadingOutlined, CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
 import { useAtom } from 'jotai';
@@ -41,59 +41,65 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const [inputError, setInputError] = useState<string | null>(null);
 
-  // Debounced search function
-  const debouncedSearch = useCallback(
-    debounce(async (query: string) => {
-      if (!query.trim()) {
-        setInputError(null);
-        return;
-      }
+  const validateQuery = useCallback((query: string): string | null => {
+    const trimmed = query.trim();
 
-      // Validate input - only allow English letters and basic punctuation
-      const englishWordPattern = /^[a-zA-Z\s\-']+$/;
-      if (!englishWordPattern.test(query.trim())) {
-        setInputError('Please enter English words only');
-        return;
-      }
+    if (!trimmed) {
+      return null;
+    }
 
-      // Check word length
-      if (query.trim().length > 100) {
-        setInputError('Word is too long (maximum 100 characters)');
-        return;
-      }
+    const englishWordPattern = /^[a-zA-Z\s\-']+$/;
+    if (!englishWordPattern.test(trimmed)) {
+      return 'Please enter English words only';
+    }
 
-      try {
-        setInputError(null);
-        setSearchQuery(query.trim());
-        await performLookup(query.trim());
-      } catch (err) {
-        console.error('Search error:', err);
-        setInputError('Failed to search. Please try again.');
-      }
-    }, 500),
-    [performLookup, setSearchQuery]
+    if (trimmed.length > 100) {
+      return 'Word is too long (maximum 100 characters)';
+    }
+
+    return null;
+  }, []);
+
+  const debouncedValidation = useMemo(
+    () =>
+      debounce((value: string) => {
+        setInputError(validateQuery(value));
+      }, 300),
+    [validateQuery]
   );
 
   // Handle input change
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setLocalQuery(value);
-    debouncedSearch(value);
-  }, [debouncedSearch]);
+    debouncedValidation(value);
+  }, [debouncedValidation]);
 
   // Handle manual search button click
   const handleSearch = useCallback(async () => {
-    if (!localQuery.trim()) return;
+    debouncedValidation.cancel();
+    const trimmed = localQuery.trim();
+    if (!trimmed) {
+      setInputError('Please enter a word to search');
+      return;
+    }
+
+    const validationError = validateQuery(trimmed);
+    if (validationError) {
+      setInputError(validationError);
+      return;
+    }
     
     try {
       setInputError(null);
-      setSearchQuery(localQuery.trim());
-      await performLookup(localQuery.trim());
+      setLocalQuery(trimmed);
+      setSearchQuery(trimmed);
+      await performLookup(trimmed);
     } catch (err) {
       console.error('Manual search error:', err);
       setInputError('Failed to search. Please try again.');
     }
-  }, [localQuery, performLookup, setSearchQuery]);
+  }, [debouncedValidation, localQuery, performLookup, setSearchQuery, validateQuery]);
 
   // Handle Enter key press
   const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -126,10 +132,14 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
 
   // Cleanup debounced function on unmount
   useEffect(() => {
+    setLocalQuery(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
     return () => {
-      debouncedSearch.cancel();
+      debouncedValidation.cancel();
     };
-  }, [debouncedSearch]);
+  }, [debouncedValidation]);
 
   return (
     <div className={`ai-search-component ${className || ''}`}>
@@ -152,7 +162,7 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
             onClick={handleSearch}
             loading={isLoading}
             size="large"
-            disabled={!localQuery.trim()}
+            disabled={!localQuery.trim() || !!inputError}
             className="search-button"
           >
             Search

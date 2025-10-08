@@ -1,23 +1,5 @@
 import { atom } from 'jotai';
 
-// Import AI error type
-declare const AIErrorType: typeof window extends { AIErrorType: infer T } ? T : {
-  API_KEY_MISSING: 'API_KEY_MISSING';
-  API_RATE_LIMIT: 'API_RATE_LIMIT'; 
-  API_NETWORK_ERROR: 'API_NETWORK_ERROR';
-  API_INVALID_RESPONSE: 'API_INVALID_RESPONSE';
-  IMAGE_GENERATION_FAILED: 'IMAGE_GENERATION_FAILED';
-};
-
-// Use the enum values directly since it's globally available
-const AI_ERROR_TYPES = {
-  API_KEY_MISSING: 'API_KEY_MISSING' as const,
-  API_RATE_LIMIT: 'API_RATE_LIMIT' as const,
-  API_NETWORK_ERROR: 'API_NETWORK_ERROR' as const,
-  API_INVALID_RESPONSE: 'API_INVALID_RESPONSE' as const,
-  IMAGE_GENERATION_FAILED: 'IMAGE_GENERATION_FAILED' as const,
-};
-
 // Existing atoms
 export const searchResultsAtom = atom<string[]>([]);
 export const selectedTextAtom = atom<string>('');
@@ -40,6 +22,7 @@ export const aiImageErrorAtom = atom<AIError | null>(null);
 // Streaming support atoms
 export const aiStreamingAtom = atom<boolean>(false);
 export const aiStreamingTextAtom = atom<string>('');
+export const aiActiveRequestIdAtom = atom<number | null>(null);
 
 // Retry mechanism atoms
 export const aiRetryCountAtom = atom<number>(0);
@@ -56,7 +39,7 @@ const parseAIError = (error: any): AIError => {
   
   if (errorMessage.includes('API key') || errorMessage.includes('API_KEY')) {
     return {
-      type: AI_ERROR_TYPES.API_KEY_MISSING,
+      type: AIErrorType.API_KEY_MISSING,
       message: 'API key is missing or invalid. Please check your configuration.',
       details: error
     };
@@ -64,7 +47,7 @@ const parseAIError = (error: any): AIError => {
   
   if (errorMessage.includes('rate limit') || errorMessage.includes('quota')) {
     return {
-      type: AI_ERROR_TYPES.API_RATE_LIMIT,
+      type: AIErrorType.API_RATE_LIMIT,
       message: 'API rate limit exceeded. Please try again in a few moments.',
       details: error
     };
@@ -72,17 +55,62 @@ const parseAIError = (error: any): AIError => {
   
   if (errorMessage.includes('network') || errorMessage.includes('connection')) {
     return {
-      type: AI_ERROR_TYPES.API_NETWORK_ERROR,
+      type: AIErrorType.API_NETWORK_ERROR,
       message: 'Network error occurred. Please check your internet connection.',
       details: error
     };
   }
   
   return {
-    type: AI_ERROR_TYPES.API_INVALID_RESPONSE,
+    type: AIErrorType.API_INVALID_RESPONSE,
     message: errorMessage,
     details: error
   };
+};
+
+type StreamChunkPayload = {
+  word: string;
+  chunk: string;
+  timestamp: number;
+  requestId?: number;
+};
+
+type StreamCompletePayload = {
+  word: string;
+  definition: string;
+  timestamp: number;
+  requestId?: number;
+};
+
+type StreamErrorPayload = {
+  word: string;
+  error: AIError;
+  timestamp: number;
+  requestId?: number;
+};
+
+let activeStreamHandlers: {
+  chunk?: (event: any, data: StreamChunkPayload) => void;
+  complete?: (event: any, data: StreamCompletePayload) => void;
+  error?: (event: any, data: StreamErrorPayload) => void;
+} = {};
+
+const cleanupStreamHandlers = () => {
+  if (!window.ipcRenderer || typeof window.ipcRenderer.removeListener !== 'function') {
+    return;
+  }
+
+  if (activeStreamHandlers.chunk) {
+    window.ipcRenderer.removeListener('ai-stream-chunk', activeStreamHandlers.chunk);
+  }
+  if (activeStreamHandlers.complete) {
+    window.ipcRenderer.removeListener('ai-stream-complete', activeStreamHandlers.complete);
+  }
+  if (activeStreamHandlers.error) {
+    window.ipcRenderer.removeListener('ai-stream-error', activeStreamHandlers.error);
+  }
+
+  activeStreamHandlers = {};
 };
 
 // Async atom for AI word lookup with streaming support
@@ -100,6 +128,7 @@ export const aiWordLookupStreamAtom = atom(
 
     const retryCount = get(aiRetryCountAtom);
     const maxRetries = 3;
+    const requestId = Date.now();
 
     try {
       // Clear previous errors and results
@@ -108,79 +137,108 @@ export const aiWordLookupStreamAtom = atom(
       (set as any)(aiSearchResultAtom, null);
       
       // Set loading and streaming states
-      (set as any)(aiSearchLoadingAtom, false); // Set to false immediately for streaming
+      (set as any)(aiSearchLoadingAtom, true);
       (set as any)(aiImageLoadingAtom, true);
       (set as any)(aiStreamingAtom, true);
       (set as any)(aiStreamingTextAtom, '');
       (set as any)(aiCanRetryAtom, retryCount < maxRetries);
+      (set as any)(aiActiveRequestIdAtom, requestId);
 
-      // Set up IPC event listeners for streaming
-      const handleStreamChunk = (event: any, data: { word: string, chunk: string, timestamp: number }) => {
-        if (data.word === word) {
-          (set as any)(aiStreamingTextAtom, data.chunk);
-        }
+      // Clean up any previous listeners before attaching new ones
+      cleanupStreamHandlers();
+
+      const updateStreamingText = (chunk: string) => {
+        (set as any)(aiStreamingTextAtom, chunk);
       };
 
-      const handleStreamComplete = (event: any, data: { word: string, definition: string, timestamp: number }) => {
-        if (data.word === word) {
-          (set as any)(aiStreamingAtom, false);
-          (set as any)(aiStreamingTextAtom, '');
-          (set as any)(aiSearchLoadingAtom, false);
-          (set as any)(aiRetryCountAtom, 0);
+      const finalizeStream = (definition: string, timestamp: number) => {
+        const result: AISearchResult = {
+          word,
+          definition,
+          timestamp,
+          source: 'gemini'
+        };
 
-          const result: AISearchResult = {
-            word,
-            definition: data.definition,
-            timestamp: data.timestamp,
-            source: 'gemini'
-          };
-
-          (set as any)(aiSearchResultAtom, result);
-
-          // Clean up listeners
-          if (window.ipcRenderer && typeof window.ipcRenderer.removeListener === 'function') {
-            window.ipcRenderer.removeListener('ai-stream-chunk', handleStreamChunk);
-            window.ipcRenderer.removeListener('ai-stream-complete', handleStreamComplete);
-            window.ipcRenderer.removeListener('ai-stream-error', handleStreamError);
-          }
-
-          // Generate image asynchronously
-          generateImageAsync(set, word, data.definition);
-        }
+        (set as any)(aiStreamingAtom, false);
+        (set as any)(aiStreamingTextAtom, '');
+        (set as any)(aiSearchLoadingAtom, false);
+        (set as any)(aiRetryCountAtom, 0);
+        (set as any)(aiSearchResultAtom, result);
       };
 
-      const handleStreamError = (event: any, data: { word: string, error: AIError, timestamp: number }) => {
-        if (data.word === word) {
-          (set as any)(aiStreamingAtom, false);
-          (set as any)(aiStreamingTextAtom, '');
-          (set as any)(aiSearchLoadingAtom, false);
-          (set as any)(aiImageLoadingAtom, false);
-          (set as any)(aiSearchErrorAtom, data.error);
-          (set as any)(aiRetryCountAtom, retryCount + 1);
-          (set as any)(aiCanRetryAtom, retryCount + 1 < maxRetries);
+      const handleStreamChunk = (_event: any, data: StreamChunkPayload) => {
+        if (data.word !== word) return;
 
-          // Clean up listeners
-          if (window.ipcRenderer && typeof window.ipcRenderer.removeListener === 'function') {
-            window.ipcRenderer.removeListener('ai-stream-chunk', handleStreamChunk);
-            window.ipcRenderer.removeListener('ai-stream-complete', handleStreamComplete);
-            window.ipcRenderer.removeListener('ai-stream-error', handleStreamError);
-          }
-        }
+        const activeId = get(aiActiveRequestIdAtom);
+        if (activeId !== requestId) return;
+
+        if (data.requestId && data.requestId !== requestId) return;
+
+        updateStreamingText(data.chunk);
       };
 
-      // Register event listeners
+      const handleStreamComplete = (_event: any, data: StreamCompletePayload) => {
+        if (data.word !== word) return;
+
+        const activeId = get(aiActiveRequestIdAtom);
+        if (activeId !== requestId) return;
+
+        if (data.requestId && data.requestId !== requestId) return;
+
+        cleanupStreamHandlers();
+        finalizeStream(data.definition, data.timestamp);
+
+        // Generate image asynchronously
+        generateImageAsync(get, set, {
+          word,
+          definition: data.definition,
+          requestId
+        });
+      };
+
+      const handleStreamError = (_event: any, data: StreamErrorPayload) => {
+        if (data.word !== word) return;
+
+        const activeId = get(aiActiveRequestIdAtom);
+        if (activeId !== requestId) return;
+
+        if (data.requestId && data.requestId !== requestId) return;
+
+        cleanupStreamHandlers();
+        (set as any)(aiStreamingAtom, false);
+        (set as any)(aiStreamingTextAtom, '');
+        (set as any)(aiSearchLoadingAtom, false);
+        (set as any)(aiImageLoadingAtom, false);
+        (set as any)(aiSearchErrorAtom, data.error);
+        (set as any)(aiRetryCountAtom, retryCount + 1);
+        (set as any)(aiCanRetryAtom, retryCount + 1 < maxRetries);
+        (set as any)(aiActiveRequestIdAtom, null);
+      };
+
+      activeStreamHandlers = {
+        chunk: handleStreamChunk,
+        complete: handleStreamComplete,
+        error: handleStreamError
+      };
+
       if (window.ipcRenderer && typeof window.ipcRenderer.on === 'function') {
         window.ipcRenderer.on('ai-stream-chunk', handleStreamChunk);
         window.ipcRenderer.on('ai-stream-complete', handleStreamComplete);
         window.ipcRenderer.on('ai-stream-error', handleStreamError);
-
-        // Start streaming lookup
-        await window.ipcRenderer.invoke('ai-lookup-word-stream', word);
       } else {
         throw new Error('IPC streaming not available - falling back to regular lookup');
       }
 
+      // Start streaming lookup with request identifier
+      await window.ipcRenderer.invoke('ai-lookup-word-stream', { word, requestId });
+
     } catch (error) {
+      cleanupStreamHandlers();
+      const activeId = get(aiActiveRequestIdAtom);
+      if (activeId === requestId) {
+        (set as any)(aiActiveRequestIdAtom, null);
+      }
+
       console.error('AI streaming word lookup failed:', error);
       
       const parsedError = parseAIError(error);
@@ -200,9 +258,27 @@ export const aiWordLookupStreamAtom = atom(
 );
 
 // Helper function for async image generation
-const generateImageAsync = async (set: any, word: string, definition: string) => {
+const generateImageAsync = async (
+  get: any,
+  set: any,
+  params: { word: string; definition: string; requestId: number }
+) => {
+  const { word, definition, requestId } = params;
+
   try {
+    const activeIdBeforeRequest = get(aiActiveRequestIdAtom);
+    if (activeIdBeforeRequest !== requestId) {
+      (set as any)(aiImageLoadingAtom, false);
+      return;
+    }
+
     const imageResponse = await window.ipcRenderer.invoke<AIImageResponse>('ai-generate-image', word, definition);
+
+    const activeIdAfterRequest = get(aiActiveRequestIdAtom);
+    if (activeIdAfterRequest !== requestId) {
+      (set as any)(aiImageLoadingAtom, false);
+      return;
+    }
 
     if (imageResponse && imageResponse.success && imageResponse.data && imageResponse.data.imageUrl) {
       // Get current result and update with image
@@ -217,7 +293,7 @@ const generateImageAsync = async (set: any, word: string, definition: string) =>
       (set as any)(aiImageErrorAtom, imageResponse.error);
     } else {
       (set as any)(aiImageErrorAtom, {
-        type: AI_ERROR_TYPES.IMAGE_GENERATION_FAILED,
+        type: AIErrorType.IMAGE_GENERATION_FAILED,
         message: 'Image generation completed but no image was returned',
         details: null
       });
@@ -225,118 +301,16 @@ const generateImageAsync = async (set: any, word: string, definition: string) =>
   } catch (imageError) {
     console.warn('Failed to generate image:', imageError);
     const parsedImageError = parseAIError(imageError);
-    parsedImageError.type = AI_ERROR_TYPES.IMAGE_GENERATION_FAILED;
+    parsedImageError.type = AIErrorType.IMAGE_GENERATION_FAILED;
     (set as any)(aiImageErrorAtom, parsedImageError);
   } finally {
-    (set as any)(aiImageLoadingAtom, false);
+    const activeId = get(aiActiveRequestIdAtom);
+    if (activeId === requestId) {
+      (set as any)(aiImageLoadingAtom, false);
+      (set as any)(aiActiveRequestIdAtom, null);
+    }
   }
 };
-
-// Async atom for AI word lookup with enhanced error handling
-export const aiWordLookupAtom = atom(
-  null,
-  async (get, set, word: string) => {
-    if (!word.trim()) {
-      (set as any)(aiSearchResultAtom, null);
-      (set as any)(aiSearchErrorAtom, null);
-      (set as any)(aiImageErrorAtom, null);
-      return;
-    }
-
-    const retryCount = get(aiRetryCountAtom);
-    const maxRetries = 3;
-
-    try {
-      // Clear previous errors
-      (set as any)(aiSearchErrorAtom, null);
-      (set as any)(aiImageErrorAtom, null);
-      
-      // Set loading states
-      (set as any)(aiSearchLoadingAtom, true);
-      (set as any)(aiImageLoadingAtom, true);
-      (set as any)(aiCanRetryAtom, retryCount < maxRetries);
-
-      // Call AI lookup word API
-      const response = await window.ipcRenderer.invoke<AILookupResponse>('ai-lookup-word', word);
-
-      if (response && response.success && response.data && response.data.definition) {
-        const definition = response.data.definition;
-        const result: AISearchResult = {
-          word,
-          definition,
-          timestamp: Date.now(),
-          source: 'gemini'
-        };
-
-        // Set the text result first
-        (set as any)(aiSearchResultAtom, result);
-        (set as any)(aiSearchLoadingAtom, false);
-        (set as any)(aiRetryCountAtom, 0); // Reset retry count on success
-
-        // Generate image asynchronously
-        try {
-          const imageResponse = await window.ipcRenderer.invoke<AIImageResponse>('ai-generate-image', word, definition);
-
-          if (imageResponse && imageResponse.success && imageResponse.data && imageResponse.data.imageUrl) {
-            // Update result with image
-            (set as any)(aiSearchResultAtom, { ...result, imageUrl: imageResponse.data.imageUrl });
-            (set as any)(aiImageErrorAtom, null);
-          } else if (imageResponse && !imageResponse.success && imageResponse.error) {
-            // Handle structured error response
-            (set as any)(aiImageErrorAtom, imageResponse.error);
-          } else {
-            // Image generation returned empty result
-            (set as any)(aiImageErrorAtom, {
-              type: AI_ERROR_TYPES.IMAGE_GENERATION_FAILED,
-              message: 'Image generation completed but no image was returned',
-              details: null
-            });
-          }
-        } catch (imageError) {
-          console.warn('Failed to generate image:', imageError);
-          const parsedImageError = parseAIError(imageError);
-          parsedImageError.type = AI_ERROR_TYPES.IMAGE_GENERATION_FAILED;
-          (set as any)(aiImageErrorAtom, parsedImageError);
-        } finally {
-          (set as any)(aiImageLoadingAtom, false);
-        }
-      } else if (response && !response.success && response.error) {
-        // Handle structured error response from IPC
-        (set as any)(aiSearchResultAtom, null);
-        (set as any)(aiSearchLoadingAtom, false);
-        (set as any)(aiImageLoadingAtom, false);
-        (set as any)(aiSearchErrorAtom, response.error);
-        
-        // Increment retry count
-        (set as any)(aiRetryCountAtom, retryCount + 1);
-        (set as any)(aiCanRetryAtom, retryCount + 1 < maxRetries);
-      } else {
-        // Definition lookup returned empty result
-        (set as any)(aiSearchResultAtom, null);
-        (set as any)(aiSearchLoadingAtom, false);
-        (set as any)(aiImageLoadingAtom, false);
-        (set as any)(aiSearchErrorAtom, {
-          type: AI_ERROR_TYPES.API_INVALID_RESPONSE,
-          message: 'No definition found for this word',
-          details: null
-        });
-      }
-    } catch (error) {
-      console.error('AI word lookup failed:', error);
-      
-      const parsedError = parseAIError(error);
-      
-      (set as any)(aiSearchResultAtom, null);
-      (set as any)(aiSearchLoadingAtom, false);
-      (set as any)(aiImageLoadingAtom, false);
-      (set as any)(aiSearchErrorAtom, parsedError);
-      
-      // Increment retry count
-      (set as any)(aiRetryCountAtom, retryCount + 1);
-      (set as any)(aiCanRetryAtom, retryCount + 1 < maxRetries);
-    }
-  }
-);
 
 // Retry atom for manual retry functionality
 export const aiRetryLookupAtom = atom(
@@ -351,7 +325,8 @@ export const aiRetryLookupAtom = atom(
     
     // Reset retry count and perform lookup
     (set as any)(aiRetryCountAtom, 0);
-    await (set as any)(aiWordLookupAtom, currentQuery);
+    (set as any)(aiActiveRequestIdAtom, null);
+    await (set as any)(aiWordLookupStreamAtom, currentQuery);
   }
 );
 
