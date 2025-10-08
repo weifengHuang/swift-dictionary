@@ -143,7 +143,7 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
 
   return (
     <div className={`ai-search-component ${className || ''}`}>
-      <div className="mb-8">
+      <div className="mb-6">
         <div className="max-w-2xl mx-auto">
           <Space.Compact style={{ width: '100%' }} size="large" className="search-input-group">
           <Input
@@ -259,8 +259,8 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
       {/* Search results - show when streaming or when we have results */}
       {(searchResult || streaming) && (
         <div className="search-results-container">
-          <Row gutter={[24, 24]}>
-            <Col xs={24} lg={12}>
+          <Row gutter={[16, 16]} wrap>
+            <Col xs={24} sm={12} lg={12}>
               <WordDefinitionDisplay
                 definition={searchResult?.definition || ''}
                 word={searchResult?.word || searchQuery}
@@ -273,7 +273,7 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
                 className="h-full"
               />
             </Col>
-            <Col xs={24} lg={12}>
+            <Col xs={24} sm={12} lg={12}>
               <AIImageDisplay
                 imageUrl={searchResult?.imageUrl}
                 word={searchResult?.word || searchQuery}

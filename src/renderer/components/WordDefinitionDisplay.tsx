@@ -215,12 +215,12 @@ export const WordDefinitionDisplay: React.FC<WordDefinitionDisplayProps> = ({
     <Card 
       className={`word-definition-display ${className}`}
       title={
-        <Space align="center">
-          <BookOutlined className="text-blue-500" />
-          <Title level={4} className="">
+        <div className="flex items-center">
+          <BookOutlined className="text-blue-500 text-xl" />
+          <div className="m-0 leading-tight text-lg">
             {word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()}
-          </Title>
-        </Space>
+          </div>
+        </div>
       }
       extra={
         timestamp && (

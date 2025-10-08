@@ -107,18 +107,18 @@ const AIMode: React.FC = () => {
   // Main AI mode interface
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="container mx-auto px-6 py-16">
+      <div className="container mx-auto px-4 py-12 lg:py-14">
         {/* Header */}
-        <div className="text-center mb-16">
-          <div className="flex flex-col items-center gap-4 mb-8">
-            <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
+        <div className="text-center mb-10 lg:mb-12">
+          <div className="flex flex-col items-center gap-3 mb-6">
+            <div className="w-14 h-14 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
               <RobotOutlined className="text-2xl text-white" />
             </div>
             <div className="text-center">
-              <Title level={1} className="mb-1 text-gray-800 font-light">
+              <Title level={2} className="mb-1 text-gray-800 font-light">
                 AI Word Lookup
               </Title>
-              <Text className="text-lg text-gray-600">
+              <Text className="text-base text-gray-600">
                 Discover English words with intelligent definitions
               </Text>
             </div>
@@ -126,7 +126,7 @@ const AIMode: React.FC = () => {
         </div>
 
         {/* Search Interface */}
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           <AISearchComponent className="w-full" />
         </div>
       </div>

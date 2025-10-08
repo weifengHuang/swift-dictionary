@@ -204,9 +204,9 @@ export const AIImageDisplay: React.FC<AIImageDisplayProps> = ({
       title={
         <Space align="center">
           <PictureOutlined className="text-green-500" />
-          <Title level={4} className="">
+          <div className="m-0 leading-tight text-lg">
             Visual Learning Aid
-          </Title>
+          </div>
         </Space>
       }
       extra={
