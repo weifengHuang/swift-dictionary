@@ -1,5 +1,8 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import titlebarContext from './titlebarContext';
+
+const STREAM_CHANNELS = ['ai-stream-chunk', 'ai-stream-complete', 'ai-stream-error'] as const;
+type StreamChannel = (typeof STREAM_CHANNELS)[number];
 
 contextBridge.exposeInMainWorld('electron_window', {
   titlebar: titlebarContext,
@@ -7,27 +10,16 @@ contextBridge.exposeInMainWorld('electron_window', {
 
 // Expose IPC renderer with proper method filtering for security
 contextBridge.exposeInMainWorld('ipcRenderer', {
-  invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
-  on: (channel: string, listener: (event: any, ...args: any[]) => void) => {
-    // Only allow specific streaming channels for security
-    const allowedChannels = [
-      'ai-stream-chunk',
-      'ai-stream-complete', 
-      'ai-stream-error'
-    ];
-    if (allowedChannels.includes(channel)) {
+  invoke: <T>(channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args) as Promise<T>,
+  on: (channel: StreamChannel, listener: (event: IpcRendererEvent, ...args: unknown[]) => void) => {
+    if (STREAM_CHANNELS.includes(channel)) {
       ipcRenderer.on(channel, listener);
     }
   },
-  removeListener: (channel: string, listener: (event: any, ...args: any[]) => void) => {
-    const allowedChannels = [
-      'ai-stream-chunk',
-      'ai-stream-complete',
-      'ai-stream-error'
-    ];
-    if (allowedChannels.includes(channel)) {
+  removeListener: (channel: StreamChannel, listener: (event: IpcRendererEvent, ...args: unknown[]) => void) => {
+    if (STREAM_CHANNELS.includes(channel)) {
       ipcRenderer.removeListener(channel, listener);
     }
   },
-  send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args)
+  send: (channel: string, ...args: unknown[]) => ipcRenderer.send(channel, ...args)
 });

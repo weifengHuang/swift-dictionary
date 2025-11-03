@@ -58,9 +58,9 @@ export async  function getWordBook () {
 async function setupGlobalShortcuts() {
   // TODO: 可配置快捷键
   globalShortcut.register('CommandOrControl+SHIFT+C', async () => {
-    let status = await getAuthStatus('accessibility')
+    const status = await getAuthStatus('accessibility')
     if (status !== 'authorized') {
-      let inputMonitorAccess  = await askForAccessibilityAccess();
+      const inputMonitorAccess  = await askForAccessibilityAccess();
       if (inputMonitorAccess !== 'authorized') {
         log.info('not authorized')
         return ;
@@ -273,7 +273,7 @@ function registerAIIpc() {
    * Handle AI image generation requests
    * Generates educational images for words using Gemini API
    */
-  ipcMain.handle('ai-generate-image', async (_, word: string, definition?: string) => {
+  ipcMain.handle('ai-generate-image', async (_, word: string, _definition?: string) => {
     try {
       if (!geminiService) {
         throw new Error('Gemini service is not available. Please check your API configuration.');

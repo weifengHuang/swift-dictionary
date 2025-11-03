@@ -24,7 +24,7 @@ export class GeminiError extends Error {
     constructor(
         public type: GeminiErrorType,
         message: string,
-        public details?: any
+        public details?: unknown
     ) {
         super(message);
         this.name = 'GeminiError';
@@ -212,11 +212,24 @@ export class GeminiService {
     /**
      * Handle and categorize API errors
      */
-    private handleApiError(error: any): GeminiError {
+    private handleApiError(error: unknown): GeminiError {
         log.error('Gemini API error:', error);
 
+        const message =
+            error instanceof Error
+                ? error.message
+                : typeof error === 'string'
+                    ? error
+                    : typeof (error as { message?: unknown })?.message === 'string'
+                        ? (error as { message: string }).message
+                        : '';
+
+        const errorWithCode = (typeof error === 'object' && error !== null
+            ? (error as { code?: string })
+            : {}) as { code?: string };
+
         // Check for specific error types
-        if (error.message?.includes('API_KEY')) {
+        if (message.includes('API_KEY')) {
             return new GeminiError(
                 GeminiErrorType.API_KEY_MISSING,
                 'Invalid or missing API key',
@@ -224,7 +237,7 @@ export class GeminiService {
             );
         }
 
-        if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
+        if (message.includes('quota') || message.includes('rate limit')) {
             return new GeminiError(
                 GeminiErrorType.API_RATE_LIMIT,
                 'API rate limit exceeded. Please try again later.',
@@ -232,7 +245,7 @@ export class GeminiService {
             );
         }
 
-        if (error.code === 'NETWORK_ERROR' || error.message?.includes('network')) {
+        if (errorWithCode.code === 'NETWORK_ERROR' || message.includes('network')) {
             return new GeminiError(
                 GeminiErrorType.API_NETWORK_ERROR,
                 'Network error occurred. Please check your internet connection.',
@@ -243,7 +256,7 @@ export class GeminiService {
         // Default to generic API error
         return new GeminiError(
             GeminiErrorType.API_INVALID_RESPONSE,
-            error.message || 'An error occurred while calling the Gemini API',
+            message || 'An error occurred while calling the Gemini API',
             error
         );
     }
@@ -466,7 +479,7 @@ Word: ${word}`;
         text = text.replace(/\n{3,}/g, '\n\n');
 
         // Ensure proper list formatting
-        text = text.replace(/^\s*(\d+\.|\*|\-)\s*/gm, '$1 ');
+        text = text.replace(/^\s*(\d+\.|\*|-)\s*/gm, '$1 ');
 
         return text.trim();
     }
@@ -489,7 +502,7 @@ Word: ${word}`;
         }
 
         // Check for basic English word pattern (letters, hyphens, apostrophes)
-        const wordPattern = /^[a-zA-Z\-']+$/;
+        const wordPattern = /^[a-zA-Z-']+$/;
         if (!wordPattern.test(trimmed)) {
             return { isValid: false, error: 'Word contains invalid characters' };
         }

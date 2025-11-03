@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Card, Image, Skeleton, Alert, Typography, Space, Button, Spin, Progress } from 'antd';
 import { PictureOutlined, ReloadOutlined, EyeOutlined, ExclamationCircleOutlined, WarningOutlined, LoadingOutlined, RobotOutlined, CheckCircleOutlined } from '@ant-design/icons';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface AIImageDisplayProps {
   imageUrl?: string;
@@ -86,7 +86,7 @@ export const AIImageDisplay: React.FC<AIImageDisplayProps> = ({
             AI is creating your visual aid
           </Typography.Title>
           <Text type="secondary" className="text-sm">
-            Generating an educational image for "{word}"
+            {`Generating an educational image for "${word}"`}
           </Text>
         </div>
 
@@ -273,7 +273,7 @@ export const AIImageDisplay: React.FC<AIImageDisplayProps> = ({
           <div className="mt-3 pt-3 border-t border-gray-200">
             <Space direction="vertical" size="small" className="w-full">
               <Text type="secondary" className="text-sm">
-                AI-generated visual representation of "{word}" to aid learning and memory
+                {`AI-generated visual representation of "${word}" to aid learning and memory`}
               </Text>
               <Space align="center" className="text-green-600">
                 <CheckCircleOutlined className="text-xs" />

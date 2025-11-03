@@ -1,41 +1,66 @@
-import { atom } from 'jotai';
+import { atom } from 'jotai/vanilla';
+import type { PrimitiveAtom, Getter, Setter } from 'jotai/vanilla';
+import type { IpcRendererEvent } from 'electron';
 
 // Existing atoms
-export const searchResultsAtom = atom<string[]>([]);
-export const selectedTextAtom = atom<string>('');
+export const searchResultsAtom: PrimitiveAtom<string[]> = atom<string[]>([]);
+export const selectedTextAtom: PrimitiveAtom<string> = atom<string>('');
 
 // AI mode related atoms
-export const aiModeActiveAtom = atom<boolean>(true);
-export const aiSearchQueryAtom = atom<string>('');
+export const aiModeActiveAtom: PrimitiveAtom<boolean> = atom<boolean>(true);
+export const aiSearchQueryAtom: PrimitiveAtom<string> = atom<string>('');
 
 // AI search result interface is defined in typings/index.d.ts
 
 // Export writable atoms directly
-export const aiSearchResultAtom = atom<AISearchResult | null>(null);
-export const aiSearchLoadingAtom = atom<boolean>(false);
-export const aiImageLoadingAtom = atom<boolean>(false);
+const initialAiSearchResult: AISearchResult | null = null;
+export const aiSearchResultAtom: PrimitiveAtom<AISearchResult | null> =
+  atom<AISearchResult | null>(initialAiSearchResult);
+export const aiSearchLoadingAtom: PrimitiveAtom<boolean> = atom<boolean>(false);
+export const aiImageLoadingAtom: PrimitiveAtom<boolean> = atom<boolean>(false);
 
 // Error handling atoms
-export const aiSearchErrorAtom = atom<AIError | null>(null);
-export const aiImageErrorAtom = atom<AIError | null>(null);
+const initialAiError: AIError | null = null;
+export const aiSearchErrorAtom: PrimitiveAtom<AIError | null> = atom<AIError | null>(initialAiError);
+export const aiImageErrorAtom: PrimitiveAtom<AIError | null> = atom<AIError | null>(initialAiError);
 
 // Streaming support atoms
-export const aiStreamingAtom = atom<boolean>(false);
-export const aiStreamingTextAtom = atom<string>('');
-export const aiActiveRequestIdAtom = atom<number | null>(null);
+export const aiStreamingAtom: PrimitiveAtom<boolean> = atom<boolean>(false);
+export const aiStreamingTextAtom: PrimitiveAtom<string> = atom<string>('');
+const initialActiveRequestId: number | null = null;
+export const aiActiveRequestIdAtom: PrimitiveAtom<number | null> =
+  atom<number | null>(initialActiveRequestId);
 
 // Retry mechanism atoms
-export const aiRetryCountAtom = atom<number>(0);
-export const aiCanRetryAtom = atom<boolean>(true);
+export const aiRetryCountAtom: PrimitiveAtom<number> = atom<number>(0);
+export const aiCanRetryAtom: PrimitiveAtom<boolean> = atom<boolean>(true);
 
 // Helper function to parse error from IPC response
-const parseAIError = (error: any): AIError => {
-  if (error && typeof error === 'object' && error.type && error.message) {
-    return error as AIError;
+const parseAIError = (error: unknown): AIError => {
+  const errorObject =
+    typeof error === 'object' && error !== null
+      ? (error as { type?: AIErrorType; message?: unknown })
+      : null;
+
+  if (errorObject?.type && typeof errorObject.message === 'string') {
+    return {
+      type: errorObject.type,
+      message: errorObject.message,
+      details: error
+    };
   }
   
   // Try to extract error information from error message
-  const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+  const stringMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : typeof (errorObject?.message) === 'string'
+          ? errorObject.message
+          : null;
+
+  const errorMessage = stringMessage || 'Unknown error occurred';
   
   if (errorMessage.includes('API key') || errorMessage.includes('API_KEY')) {
     return {
@@ -89,10 +114,12 @@ type StreamErrorPayload = {
   requestId?: number;
 };
 
+type StreamEventHandler<T> = (event: IpcRendererEvent, data: T) => void;
+
 let activeStreamHandlers: {
-  chunk?: (event: any, data: StreamChunkPayload) => void;
-  complete?: (event: any, data: StreamCompletePayload) => void;
-  error?: (event: any, data: StreamErrorPayload) => void;
+  chunk?: StreamEventHandler<StreamChunkPayload>;
+  complete?: StreamEventHandler<StreamCompletePayload>;
+  error?: StreamEventHandler<StreamErrorPayload>;
 } = {};
 
 const cleanupStreamHandlers = () => {
@@ -118,11 +145,11 @@ export const aiWordLookupStreamAtom = atom(
   null,
   async (get, set, word: string) => {
     if (!word.trim()) {
-      (set as any)(aiSearchResultAtom, null);
-      (set as any)(aiSearchErrorAtom, null);
-      (set as any)(aiImageErrorAtom, null);
-      (set as any)(aiStreamingAtom, false);
-      (set as any)(aiStreamingTextAtom, '');
+      set(aiSearchResultAtom, null);
+      set(aiSearchErrorAtom, null);
+      set(aiImageErrorAtom, null);
+      set(aiStreamingAtom, false);
+      set(aiStreamingTextAtom, '');
       return;
     }
 
@@ -132,23 +159,23 @@ export const aiWordLookupStreamAtom = atom(
 
     try {
       // Clear previous errors and results
-      (set as any)(aiSearchErrorAtom, null);
-      (set as any)(aiImageErrorAtom, null);
-      (set as any)(aiSearchResultAtom, null);
+      set(aiSearchErrorAtom, null);
+      set(aiImageErrorAtom, null);
+      set(aiSearchResultAtom, null);
       
       // Set loading and streaming states
-      (set as any)(aiSearchLoadingAtom, true);
-      (set as any)(aiImageLoadingAtom, true);
-      (set as any)(aiStreamingAtom, true);
-      (set as any)(aiStreamingTextAtom, '');
-      (set as any)(aiCanRetryAtom, retryCount < maxRetries);
-      (set as any)(aiActiveRequestIdAtom, requestId);
+      set(aiSearchLoadingAtom, true);
+      set(aiImageLoadingAtom, true);
+      set(aiStreamingAtom, true);
+      set(aiStreamingTextAtom, '');
+      set(aiCanRetryAtom, retryCount < maxRetries);
+      set(aiActiveRequestIdAtom, requestId);
 
       // Clean up any previous listeners before attaching new ones
       cleanupStreamHandlers();
 
       const updateStreamingText = (chunk: string) => {
-        (set as any)(aiStreamingTextAtom, chunk);
+        set(aiStreamingTextAtom, chunk);
       };
 
       const finalizeStream = (definition: string, timestamp: number) => {
@@ -159,14 +186,14 @@ export const aiWordLookupStreamAtom = atom(
           source: 'gemini'
         };
 
-        (set as any)(aiStreamingAtom, false);
-        (set as any)(aiStreamingTextAtom, '');
-        (set as any)(aiSearchLoadingAtom, false);
-        (set as any)(aiRetryCountAtom, 0);
-        (set as any)(aiSearchResultAtom, result);
+        set(aiStreamingAtom, false);
+        set(aiStreamingTextAtom, '');
+        set(aiSearchLoadingAtom, false);
+        set(aiRetryCountAtom, 0);
+        set(aiSearchResultAtom, result);
       };
 
-      const handleStreamChunk = (_event: any, data: StreamChunkPayload) => {
+      const handleStreamChunk = (_event: IpcRendererEvent, data: StreamChunkPayload) => {
         if (data.word !== word) return;
 
         const activeId = get(aiActiveRequestIdAtom);
@@ -177,7 +204,7 @@ export const aiWordLookupStreamAtom = atom(
         updateStreamingText(data.chunk);
       };
 
-      const handleStreamComplete = (_event: any, data: StreamCompletePayload) => {
+      const handleStreamComplete = (_event: IpcRendererEvent, data: StreamCompletePayload) => {
         if (data.word !== word) return;
 
         const activeId = get(aiActiveRequestIdAtom);
@@ -196,7 +223,7 @@ export const aiWordLookupStreamAtom = atom(
         });
       };
 
-      const handleStreamError = (_event: any, data: StreamErrorPayload) => {
+      const handleStreamError = (_event: IpcRendererEvent, data: StreamErrorPayload) => {
         if (data.word !== word) return;
 
         const activeId = get(aiActiveRequestIdAtom);
@@ -205,14 +232,14 @@ export const aiWordLookupStreamAtom = atom(
         if (data.requestId && data.requestId !== requestId) return;
 
         cleanupStreamHandlers();
-        (set as any)(aiStreamingAtom, false);
-        (set as any)(aiStreamingTextAtom, '');
-        (set as any)(aiSearchLoadingAtom, false);
-        (set as any)(aiImageLoadingAtom, false);
-        (set as any)(aiSearchErrorAtom, data.error);
-        (set as any)(aiRetryCountAtom, retryCount + 1);
-        (set as any)(aiCanRetryAtom, retryCount + 1 < maxRetries);
-        (set as any)(aiActiveRequestIdAtom, null);
+        set(aiStreamingAtom, false);
+        set(aiStreamingTextAtom, '');
+        set(aiSearchLoadingAtom, false);
+        set(aiImageLoadingAtom, false);
+        set(aiSearchErrorAtom, data.error);
+        set(aiRetryCountAtom, retryCount + 1);
+        set(aiCanRetryAtom, retryCount + 1 < maxRetries);
+        set(aiActiveRequestIdAtom, null);
       };
 
       activeStreamHandlers = {
@@ -236,31 +263,31 @@ export const aiWordLookupStreamAtom = atom(
       cleanupStreamHandlers();
       const activeId = get(aiActiveRequestIdAtom);
       if (activeId === requestId) {
-        (set as any)(aiActiveRequestIdAtom, null);
+        set(aiActiveRequestIdAtom, null);
       }
 
       console.error('AI streaming word lookup failed:', error);
       
       const parsedError = parseAIError(error);
       
-      (set as any)(aiSearchResultAtom, null);
-      (set as any)(aiSearchLoadingAtom, false);
-      (set as any)(aiImageLoadingAtom, false);
-      (set as any)(aiStreamingAtom, false);
-      (set as any)(aiStreamingTextAtom, '');
-      (set as any)(aiSearchErrorAtom, parsedError);
+      set(aiSearchResultAtom, null);
+      set(aiSearchLoadingAtom, false);
+      set(aiImageLoadingAtom, false);
+      set(aiStreamingAtom, false);
+      set(aiStreamingTextAtom, '');
+      set(aiSearchErrorAtom, parsedError);
       
       // Increment retry count
-      (set as any)(aiRetryCountAtom, retryCount + 1);
-      (set as any)(aiCanRetryAtom, retryCount + 1 < maxRetries);
+      set(aiRetryCountAtom, retryCount + 1);
+      set(aiCanRetryAtom, retryCount + 1 < maxRetries);
     }
   }
 );
 
 // Helper function for async image generation
 const generateImageAsync = async (
-  get: any,
-  set: any,
+  get: Getter,
+  set: Setter,
   params: { word: string; definition: string; requestId: number }
 ) => {
   const { word, definition, requestId } = params;
@@ -268,7 +295,7 @@ const generateImageAsync = async (
   try {
     const activeIdBeforeRequest = get(aiActiveRequestIdAtom);
     if (activeIdBeforeRequest !== requestId) {
-      (set as any)(aiImageLoadingAtom, false);
+      set(aiImageLoadingAtom, false);
       return;
     }
 
@@ -276,7 +303,7 @@ const generateImageAsync = async (
 
     const activeIdAfterRequest = get(aiActiveRequestIdAtom);
     if (activeIdAfterRequest !== requestId) {
-      (set as any)(aiImageLoadingAtom, false);
+      set(aiImageLoadingAtom, false);
       return;
     }
 
@@ -288,11 +315,11 @@ const generateImageAsync = async (
         }
         return current;
       });
-      (set as any)(aiImageErrorAtom, null);
+      set(aiImageErrorAtom, null);
     } else if (imageResponse && !imageResponse.success && imageResponse.error) {
-      (set as any)(aiImageErrorAtom, imageResponse.error);
+      set(aiImageErrorAtom, imageResponse.error);
     } else {
-      (set as any)(aiImageErrorAtom, {
+      set(aiImageErrorAtom, {
         type: AIErrorType.IMAGE_GENERATION_FAILED,
         message: 'Image generation completed but no image was returned',
         details: null
@@ -302,12 +329,12 @@ const generateImageAsync = async (
     console.warn('Failed to generate image:', imageError);
     const parsedImageError = parseAIError(imageError);
     parsedImageError.type = AIErrorType.IMAGE_GENERATION_FAILED;
-    (set as any)(aiImageErrorAtom, parsedImageError);
+    set(aiImageErrorAtom, parsedImageError);
   } finally {
     const activeId = get(aiActiveRequestIdAtom);
     if (activeId === requestId) {
-      (set as any)(aiImageLoadingAtom, false);
-      (set as any)(aiActiveRequestIdAtom, null);
+      set(aiImageLoadingAtom, false);
+      set(aiActiveRequestIdAtom, null);
     }
   }
 };
@@ -324,9 +351,9 @@ export const aiRetryLookupAtom = atom(
     }
     
     // Reset retry count and perform lookup
-    (set as any)(aiRetryCountAtom, 0);
-    (set as any)(aiActiveRequestIdAtom, null);
-    await (set as any)(aiWordLookupStreamAtom, currentQuery);
+    set(aiRetryCountAtom, 0);
+    set(aiActiveRequestIdAtom, null);
+    await set(aiWordLookupStreamAtom, currentQuery);
   }
 );
 

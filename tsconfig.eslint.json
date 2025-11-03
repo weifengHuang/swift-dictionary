@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.js",
+    "src/**/*.jsx",
+    "tools/**/*.ts",
+    "tools/**/*.tsx",
+    "tools/**/*.js"
+  ],
+  "exclude": ["node_modules", "out", "dist"]
+}

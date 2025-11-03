@@ -19,8 +19,6 @@ import debounce from 'lodash.debounce';
 import WordDefinitionDisplay from './WordDefinitionDisplay';
 import AIImageDisplay from './AIImageDisplay';
 
-const { Title } = Typography;
-
 interface AISearchComponentProps {
   className?: string;
 }
@@ -213,7 +211,7 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
             </div>
             
             <Typography.Title level={4} className="mb-3 text-gray-700">
-              Searching for "{searchQuery}"
+              {`Searching for "${searchQuery}"`}
             </Typography.Title>
             
             <div className="loading-progress mb-6">

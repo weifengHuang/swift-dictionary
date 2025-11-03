@@ -4,7 +4,7 @@ import { BookOutlined, ClockCircleOutlined, ReloadOutlined, ExclamationCircleOut
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface WordDefinitionDisplayProps {
   definition: string;
