@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Spin, Typography, Space } from 'antd';
 import { ExclamationCircleOutlined, RobotOutlined, LoadingOutlined } from '@ant-design/icons';
 import AISearchComponent from '../../components/AISearchComponent';
+import { AiLookupProvider } from '@renderer/store';
 
 const { Title, Text } = Typography;
 
@@ -127,7 +128,9 @@ const AIMode: React.FC = () => {
 
         {/* Search Interface */}
         <div className="max-w-3xl mx-auto">
-          <AISearchComponent className="w-full" />
+          <AiLookupProvider>
+            <AISearchComponent className="w-full" />
+          </AiLookupProvider>
         </div>
       </div>
     </div>

@@ -1,42 +1,44 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Input, Button, Space, Typography, Spin, Alert, Row, Col, Progress, Card, message } from 'antd';
+import {
+  Input,
+  Button,
+  Space,
+  Typography,
+  Spin,
+  Alert,
+  Row,
+  Col,
+  Progress,
+  Card,
+  message
+} from 'antd';
 import { SearchOutlined, LoadingOutlined, CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
-import { useAtom } from 'jotai';
-import { 
-  aiSearchQueryAtom, 
-  aiSearchResultAtom, 
-  aiSearchLoadingAtom,
-  aiImageLoadingAtom,
-  aiWordLookupStreamAtom,
-  aiSearchErrorAtom,
-  aiImageErrorAtom,
-  aiRetryLookupAtom,
-  aiCanRetryAtom,
-  aiStreamingAtom,
-  aiStreamingTextAtom
-} from '../store';
 import debounce from 'lodash.debounce';
 import WordDefinitionDisplay from './WordDefinitionDisplay';
 import AIImageDisplay from './AIImageDisplay';
+import { useAiLookup, useAiLookupController } from '@renderer/store';
 
 interface AISearchComponentProps {
   className?: string;
 }
 
 export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className }) => {
-  const [searchQuery, setSearchQuery] = useAtom(aiSearchQueryAtom);
-  const [searchResult] = useAtom(aiSearchResultAtom);
-  const [isLoading] = useAtom(aiSearchLoadingAtom);
-  const [isImageLoading] = useAtom(aiImageLoadingAtom);
-  const [searchError] = useAtom(aiSearchErrorAtom);
-  const [imageError] = useAtom(aiImageErrorAtom);
-  const [canRetry] = useAtom(aiCanRetryAtom);
-  const [streaming] = useAtom(aiStreamingAtom);
-  const [streamingText] = useAtom(aiStreamingTextAtom);
-  const [, performLookup] = useAtom(aiWordLookupStreamAtom);
-  const [, performRetry] = useAtom(aiRetryLookupAtom);
-  
-  const [localQuery, setLocalQuery] = useState(searchQuery);
+  const { state } = useAiLookup();
+  const { lookup, retry } = useAiLookupController();
+
+  const {
+    query,
+    result,
+    isLoading,
+    isStreaming,
+    isImageLoading,
+    streamText,
+    searchError,
+    imageError,
+    canRetry
+  } = state;
+
+  const [localQuery, setLocalQuery] = useState(query);
   const [inputError, setInputError] = useState<string | null>(null);
 
   const validateQuery = useCallback((query: string): string | null => {
@@ -91,13 +93,12 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
     try {
       setInputError(null);
       setLocalQuery(trimmed);
-      setSearchQuery(trimmed);
-      await performLookup(trimmed);
+      await lookup(trimmed);
     } catch (err) {
       console.error('Manual search error:', err);
       setInputError('Failed to search. Please try again.');
     }
-  }, [debouncedValidation, localQuery, performLookup, setSearchQuery, validateQuery]);
+  }, [debouncedValidation, localQuery, lookup, validateQuery]);
 
   // Handle Enter key press
   const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -130,8 +131,8 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
 
   // Cleanup debounced function on unmount
   useEffect(() => {
-    setLocalQuery(searchQuery);
-  }, [searchQuery]);
+    setLocalQuery(query);
+  }, [query]);
 
   useEffect(() => {
     return () => {
@@ -189,7 +190,7 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
             className="mt-3"
             action={
               canRetry && (
-                <Button size="small" onClick={() => performRetry()}>
+                <Button size="small" onClick={() => { void retry(); }}>
                   Retry
                 </Button>
               )
@@ -200,7 +201,7 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
       </div>
 
       {/* Enhanced Loading state - only show when not streaming */}
-      {isLoading && !streaming && (
+      {isLoading && !isStreaming && (
         <Card className="loading-card mb-8">
           <div className="loading-content">
             <div className="mb-6">
@@ -211,7 +212,7 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
             </div>
             
             <Typography.Title level={4} className="mb-3 text-gray-700">
-              {`Searching for "${searchQuery}"`}
+              {`Searching for "${query}"`}
             </Typography.Title>
             
             <div className="loading-progress mb-6">
@@ -255,29 +256,29 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
       )}
 
       {/* Search results - show when streaming or when we have results */}
-      {(searchResult || streaming) && (
+      {(result || isStreaming) && (
         <div className="search-results-container">
           <Row gutter={[16, 16]} wrap>
             <Col xs={24} sm={12} lg={12}>
               <WordDefinitionDisplay
-                definition={searchResult?.definition || ''}
-                word={searchResult?.word || searchQuery}
-                timestamp={searchResult?.timestamp}
+                definition={result?.definition || ''}
+                word={result?.word || query}
+                timestamp={result?.timestamp}
                 loading={false}
                 error={searchError}
-                onRetry={() => performLookup(searchResult?.word || searchQuery)}
-                streaming={streaming}
-                streamingText={streamingText}
+                onRetry={() => { void lookup(result?.word || query); }}
+                streaming={isStreaming}
+                streamingText={streamText}
                 className="h-full"
               />
             </Col>
             <Col xs={24} sm={12} lg={12}>
               <AIImageDisplay
-                imageUrl={searchResult?.imageUrl}
-                word={searchResult?.word || searchQuery}
+                imageUrl={result?.imageUrl}
+                word={result?.word || query}
                 loading={isImageLoading}
                 error={imageError}
-                onRetry={() => performLookup(searchResult?.word || searchQuery)}
+                onRetry={() => { void lookup(result?.word || query); }}
                 className="h-full"
               />
             </Col>
@@ -286,7 +287,7 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
       )}
 
       {/* No results state */}
-      {!searchResult && !isLoading && !streaming && searchQuery && (
+      {!result && !isLoading && !isStreaming && query && (
         <div className="text-center py-12">
           <div className="text-gray-400 mb-4">
             <SearchOutlined style={{ fontSize: 48 }} />
