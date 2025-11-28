@@ -1,6 +1,14 @@
 // Forge Configuration
 const path = require('path');
+const fs = require('fs');
 const rootDir = process.cwd();
+
+// Include user-provided .env file in packaged app if present
+const envPath = path.join(rootDir, '.env');
+const extraResources = [];
+if (fs.existsSync(envPath)) {
+  extraResources.push(envPath);
+}
 
 module.exports = {
   // Packager Config
@@ -13,6 +21,8 @@ module.exports = {
     appCopyright: '© 2021-2024 Codesbiome, Guasam',
     // Set application icon
     icon: path.resolve('assets/images/appIcon.ico'),
+    // Copy .env into the packaged app so runtime config is available
+    extraResource: extraResources,
   },
   // Forge Makers
   makers: [

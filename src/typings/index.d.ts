@@ -86,13 +86,12 @@ declare global {
     geminiApiBaseUrl: string;
   }
 
-  enum AIErrorType {
-    API_KEY_MISSING = 'API_KEY_MISSING',
-    API_RATE_LIMIT = 'API_RATE_LIMIT',
-    API_NETWORK_ERROR = 'API_NETWORK_ERROR',
-    API_INVALID_RESPONSE = 'API_INVALID_RESPONSE',
-    IMAGE_GENERATION_FAILED = 'IMAGE_GENERATION_FAILED'
-  }
+  type AIErrorType =
+    | 'API_KEY_MISSING'
+    | 'API_RATE_LIMIT'
+    | 'API_NETWORK_ERROR'
+    | 'API_INVALID_RESPONSE'
+    | 'IMAGE_GENERATION_FAILED';
 
   interface AIError {
     type: AIErrorType;

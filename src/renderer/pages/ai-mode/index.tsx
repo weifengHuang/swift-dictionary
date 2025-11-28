@@ -15,12 +15,16 @@ const AIMode: React.FC = () => {
   useEffect(() => {
     const checkConfiguration = async () => {
       try {
-        const isConfigured = await window.ipcRenderer.invoke<boolean>('check-ai-config');
-        setConfigValid(isConfigured);
-        
-        if (!isConfigured) {
+        const response = await window.ipcRenderer.invoke<AIConfigCheckResponse>('check-ai-config');
+
+        if (response?.success) {
+          setConfigValid(true);
+          setConfigError(null);
+        } else {
+          setConfigValid(false);
           setConfigError(
-            'AI configuration is missing. Please ensure your .env file contains the required Gemini API key.'
+            response?.error?.message ||
+            'AI configuration is missing. Please ensure your .env file contains the required Gemini/OpenRouter API key.'
           );
         }
       } catch (error) {

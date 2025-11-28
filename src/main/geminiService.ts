@@ -1,9 +1,10 @@
-import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import OpenAI from 'openai';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import * as dotenv from 'dotenv';
 import log from 'electron-log';
-
-// Load environment variables
-dotenv.config();
+import path from 'path';
+import fs from 'fs';
+import { app } from 'electron';
 
 /**
  * Error types for Gemini API operations
@@ -38,22 +39,52 @@ interface GeminiConfig {
     apiKey: string;
     textModel: string;
     imageModel: string;
-    baseUrl?: string;
+    baseUrl: string;
+    referer?: string;
+    appTitle?: string;
 }
 
 /**
- * GeminiService class handles all interactions with Google's Gemini API
+ * GeminiService class handles all interactions with Gemini models via OpenRouter API
  * Provides text generation and image generation capabilities
  */
 export class GeminiService {
-    private genAI: GoogleGenerativeAI | null = null;
-    private textModel: GenerativeModel | null = null;
-    private imageModel: GenerativeModel | null = null;
     private config: GeminiConfig | null = null;
     private isInitialized = false;
+    private client: OpenAI | null = null;
 
     constructor() {
+        this.loadEnvironmentConfig();
         this.initializeService();
+    }
+
+    /**
+     * Load environment variables from known locations in both dev and packaged builds
+     */
+    private loadEnvironmentConfig(): void {
+        const candidatePaths = Array.from(
+            new Set(
+                [
+                    // Packaged app: .env copied to Resources via forge extraResource
+                    path.join(process.resourcesPath, '.env'),
+                    // Packaged app alternative: alongside executable
+                    app?.isReady?.() ? path.join(path.dirname(app.getPath('exe')), '.env') : null,
+                    // Dev build: project root
+                    path.resolve(process.cwd(), '.env'),
+                    // Fallback when running from compiled bundle
+                    path.resolve(__dirname, '../../.env')
+                ].filter((p): p is string => !!p)
+            )
+        );
+
+        const foundPath = candidatePaths.find((envPath) => fs.existsSync(envPath));
+
+        if (foundPath) {
+            dotenv.config({ path: foundPath, override: false });
+            log.info(`Loaded environment variables from ${foundPath}`);
+        } else {
+            log.warn('No .env file found in expected locations; relying on process environment variables');
+        }
     }
 
     /**
@@ -63,16 +94,18 @@ export class GeminiService {
         try {
             log.info('Initializing GeminiService...');
 
-            const apiKey = process.env.GEMINI_API_KEY;
-            const textModel = process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash';
-            const imageModel = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-preview-image-generation';
-            const baseUrl = process.env.GEMINI_API_BASE_URL;
+            const apiKey = process.env.OPENROUTER_API_KEY;
+            const textModel = process.env.OPENROUTER_TEXT_MODEL || 'google/gemini-2.0-flash-001';
+            const imageModel = process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.0-flash-001';
+            const baseUrl = process.env.OPENROUTER_API_BASE_URL;
+            const referer = process.env.OPENROUTER_REFERRER;
+            const appTitle = process.env.OPENROUTER_TITLE;
 
-            if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-                log.error('Gemini API key is missing or not configured');
+            if (!apiKey) {
+                log.error('OpenRouter API key is missing or not configured');
                 throw new GeminiError(
                     GeminiErrorType.API_KEY_MISSING,
-                    'Gemini API key is missing. Please configure GEMINI_API_KEY in your .env file.'
+                    'OpenRouter API key is missing. Please configure OPENROUTER_API_KEY in your .env file.'
                 );
             }
 
@@ -80,15 +113,24 @@ export class GeminiService {
                 apiKey,
                 textModel,
                 imageModel,
-                baseUrl
+                baseUrl,
+                referer,
+                appTitle
             };
 
-            // Initialize Google Generative AI client
-            this.genAI = new GoogleGenerativeAI(apiKey);
+            const defaultHeaders: Record<string, string> = {};
+            if (referer) {
+                defaultHeaders['HTTP-Referer'] = referer;
+            }
+            if (appTitle) {
+                defaultHeaders['X-Title'] = appTitle;
+            }
 
-            // Initialize models
-            this.textModel = this.genAI.getGenerativeModel({ model: textModel });
-            this.imageModel = this.genAI.getGenerativeModel({ model: imageModel });
+            this.client = new OpenAI({
+                apiKey,
+                baseURL: baseUrl,
+                defaultHeaders,
+            });
 
             this.isInitialized = true;
             log.info('GeminiService initialized successfully');
@@ -117,9 +159,11 @@ export class GeminiService {
     public isConfigured(): boolean {
         return this.isInitialized &&
             this.config !== null &&
-            this.genAI !== null &&
-            this.textModel !== null &&
-            this.imageModel !== null;
+            !!this.config.apiKey &&
+            !!this.config.textModel &&
+            !!this.config.imageModel &&
+            !!this.config.baseUrl &&
+            this.client !== null;
     }
 
     /**
@@ -133,7 +177,7 @@ export class GeminiService {
             return { isValid: false, errors };
         }
 
-        if (!this.config.apiKey || this.config.apiKey === 'your_gemini_api_key_here') {
+        if (!this.config.apiKey) {
             errors.push('API key is missing or using placeholder value');
         }
 
@@ -143,6 +187,10 @@ export class GeminiService {
 
         if (!this.config.imageModel) {
             errors.push('Image model configuration is missing');
+        }
+
+        if (!this.config.baseUrl) {
+            errors.push('Base URL configuration is missing');
         }
 
         if (!this.isInitialized) {
@@ -167,6 +215,8 @@ export class GeminiService {
             textModel: this.config.textModel,
             imageModel: this.config.imageModel,
             baseUrl: this.config.baseUrl,
+            referer: this.config.referer,
+            appTitle: this.config.appTitle,
             apiKey: this.config.apiKey ? '***configured***' : 'missing'
         };
     }
@@ -185,20 +235,22 @@ export class GeminiService {
 
             log.info('Testing Gemini API connection...');
 
-            // Simple test request
-            const result = await this.textModel!.generateContent('Hello');
-            const response = await result.response;
+            const response = await this.callChatCompletion({
+                prompt: 'Hello',
+                stream: false,
+                maxTokens: 100 // Small limit for connection test
+            });
 
-            if (response && response.text()) {
+            if (response && response.trim().length > 0) {
                 log.info('Gemini API connection test successful');
                 return { success: true };
-            } else {
-                log.error('Gemini API connection test failed: No response text');
-                return {
-                    success: false,
-                    error: 'Invalid response from API'
-                };
             }
+
+            log.error('Gemini API connection test failed: No response text');
+            return {
+                success: false,
+                error: 'Invalid response from API'
+            };
 
         } catch (error) {
             log.error('Gemini API connection test failed:', error);
@@ -262,30 +314,130 @@ export class GeminiService {
     }
 
     /**
-     * Get the text model instance (for internal use)
+     * Get the OpenAI client (configured for OpenRouter)
      */
-    protected getTextModel(): GenerativeModel {
-        if (!this.textModel) {
+    private getClient(): OpenAI {
+        if (!this.client) {
             throw new GeminiError(
                 GeminiErrorType.CONFIGURATION_ERROR,
-                'Text model not initialized'
+                'Gemini service client is not initialized'
             );
         }
-        return this.textModel;
+        return this.client;
     }
 
     /**
-     * Get the image model instance (for internal use)
+     * Extract text content from a chat completion response
      */
-    protected getImageModel(): GenerativeModel {
-        if (!this.imageModel) {
+    private extractContentText(content: unknown): string {
+        if (typeof content === 'string') {
+            return content;
+        }
+
+        if (Array.isArray(content)) {
+            return content
+                .map((part) => {
+                    if (typeof part === 'string') return part;
+                    if (part && typeof part === 'object' && 'text' in part && typeof (part as { text?: unknown }).text === 'string') {
+                        return (part as { text: string }).text;
+                    }
+                    if (part && typeof part === 'object' && 'content' in part && typeof (part as { content?: unknown }).content === 'string') {
+                        return (part as { content: string }).content;
+                    }
+                    return '';
+                })
+                .join('');
+        }
+
+        if (content && typeof content === 'object' && 'text' in content && typeof (content as { text?: unknown }).text === 'string') {
+            return (content as { text: string }).text;
+        }
+
+        return '';
+    }
+
+    /**
+     * Call the OpenRouter chat completions API
+     */
+    private async callChatCompletion(options: {
+        prompt: string;
+        stream: boolean;
+        maxTokens?: number;
+        onChunk?: (chunk: string) => void;
+    }): Promise<string> {
+        if (!this.config) {
             throw new GeminiError(
                 GeminiErrorType.CONFIGURATION_ERROR,
-                'Image model not initialized'
+                'Gemini service is not properly configured'
             );
         }
-        return this.imageModel;
+
+        const client = this.getClient();
+        const messages: ChatCompletionMessageParam[] = [
+            {
+                role: 'user',
+                content: options.prompt
+            }
+        ];
+
+        // Default to 4096 tokens, which is reasonable for word definitions
+        // This prevents the API from using the model's maximum (e.g., 64000)
+        const maxTokens = options.maxTokens ?? 4096;
+
+        const request = {
+            model: this.config.textModel,
+            messages,
+            max_tokens: maxTokens
+        };
+
+        if (options.stream) {
+            const stream = await client.chat.completions.create({
+                ...request,
+                stream: true
+            });
+
+            let fullText = '';
+            for await (const chunk of stream) {
+                const delta = chunk?.choices?.[0]?.delta?.content;
+                const deltaText = this.extractContentText(delta);
+                if (deltaText) {
+                    fullText += deltaText;
+                    if (options.onChunk) {
+                        options.onChunk(fullText);
+                    }
+                }
+            }
+
+            if (!fullText) {
+                throw new GeminiError(
+                    GeminiErrorType.API_INVALID_RESPONSE,
+                    'Empty response received from Gemini API'
+                );
+            }
+
+            return fullText;
+        }
+
+        const completion = await client.chat.completions.create({
+            ...request,
+            stream: false
+        });
+
+        const content = completion?.choices?.[0]?.message?.content;
+        const text = this.extractContentText(content);
+        if (!text) {
+            throw new GeminiError(
+                GeminiErrorType.API_INVALID_RESPONSE,
+                'Empty response received from Gemini API'
+            );
+        }
+
+        return text;
     }
+
+    /**
+     * Attempt to parse an error response body
+     */
 
     /**
      * Get detailed English definition and explanation for a word with streaming support
@@ -318,27 +470,11 @@ export class GeminiService {
             // Create a comprehensive prompt for word definition
             const prompt = this.buildWordDefinitionPrompt(cleanWord);
 
-            const model = this.getTextModel();
-            const result = await model.generateContentStream(prompt);
-            
-            let fullText = '';
-            
-            // Process streaming chunks
-            for await (const chunk of result.stream) {
-                const chunkText = chunk.text();
-                if (chunkText) {
-                    fullText += chunkText;
-                    // Send the chunk to the callback
-                    onChunk(fullText);
-                }
-            }
-
-            if (!fullText || fullText.trim().length === 0) {
-                throw new GeminiError(
-                    GeminiErrorType.API_INVALID_RESPONSE,
-                    'Empty response received from Gemini API'
-                );
-            }
+            const fullText = await this.callChatCompletion({
+                prompt,
+                stream: true,
+                onChunk
+            });
 
             const formattedDefinition = this.formatWordDefinition(fullText, cleanWord);
             log.info(`Successfully retrieved streaming definition for word: ${cleanWord}`);
@@ -380,24 +516,10 @@ export class GeminiService {
             // Create a comprehensive prompt for word definition
             const prompt = this.buildWordDefinitionPrompt(cleanWord);
 
-            const model = this.getTextModel();
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-
-            if (!response) {
-                throw new GeminiError(
-                    GeminiErrorType.API_INVALID_RESPONSE,
-                    'No response received from Gemini API'
-                );
-            }
-
-            const text = response.text();
-            if (!text || text.trim().length === 0) {
-                throw new GeminiError(
-                    GeminiErrorType.API_INVALID_RESPONSE,
-                    'Empty response received from Gemini API'
-                );
-            }
+            const text = await this.callChatCompletion({
+                prompt,
+                stream: false
+            });
 
             const formattedDefinition = this.formatWordDefinition(text, cleanWord);
             log.info(`Successfully retrieved definition for word: ${cleanWord}`);
@@ -539,39 +661,27 @@ Word: ${word}`;
             // Build image generation prompt
             const prompt = this.buildImageGenerationPrompt(cleanWord);
             
-            // Use direct API call to ensure proper response modalities configuration
-            const apiKey = this.config!.apiKey;
-            const imageModel = this.config!.imageModel;
+            const client = this.getClient();
             
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
+            // Use OpenRouter's chat completions API with modalities for image generation
+            // See: https://openrouter.ai/docs/guides/overview/multimodal/image-generation
+            // Note: max_tokens is set low (256) since we primarily want the image output,
+            // not extensive text. This also prevents exceeding credit limits on paid accounts.
+            const response = await client.chat.completions.create({
+                model: this.config!.imageModel,
+                messages: [
+                    {
                         role: 'user',
-                        parts: [{ text: prompt }]
-                    }],
-                    generationConfig: {
-                        responseModalities: ["TEXT", "IMAGE"]
+                        content: prompt
                     }
-                })
+                ],
+                max_tokens: 256,
+                // @ts-expect-error - OpenRouter extension: modalities parameter for image generation
+                modalities: ['image', 'text']
             });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                log.error(`Image generation API error: ${response.status} ${response.statusText}`, errorData);
-                throw new GeminiError(
-                    GeminiErrorType.IMAGE_GENERATION_FAILED,
-                    `Image generation failed: ${errorData.error?.message || response.statusText}`
-                );
-            }
-
-            const data = await response.json();
             
-            // Extract image data from response
-            const imageUrl = this.extractImageDataFromResponse(data);
+            // Extract image data from OpenRouter response format
+            const imageUrl = this.extractImageFromChatResponse(response);
             
             if (!imageUrl) {
                 throw new GeminiError(
@@ -654,51 +764,54 @@ The image should help someone understand and remember the meaning of "${word}" v
     }
 
     /**
-     * Extract base64 image data from Gemini API response
+     * Extract image data from OpenRouter chat completions response
+     * OpenRouter returns images in message.images array with image_url.url format
+     * See: https://openrouter.ai/docs/guides/overview/multimodal/image-generation
      */
-    private extractImageDataFromResponse(data: unknown): string | null {
+    private extractImageFromChatResponse(response: unknown): string | null {
         try {
-            // Type guard to ensure we have the expected structure
-            if (!data || typeof data !== 'object' || !('candidates' in data)) {
-                log.error('Invalid response structure');
+            // OpenRouter chat completions response format for image generation
+            interface OpenRouterImageResponse {
+                choices?: Array<{
+                    message?: {
+                        role?: string;
+                        content?: string;
+                        images?: Array<{
+                            type?: string;
+                            image_url?: {
+                                url?: string;
+                            };
+                        }>;
+                    };
+                }>;
+            }
+
+            const chatResponse = response as OpenRouterImageResponse;
+            const message = chatResponse?.choices?.[0]?.message;
+
+            if (!message) {
+                log.error('No message found in chat completions response');
                 return null;
             }
 
-            const response = data as { candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string }; text?: string }> } }> };
-            const candidates = response.candidates;
-            if (!candidates || !Array.isArray(candidates) || candidates.length === 0) {
-                log.error('No candidates found in image generation response');
-                return null;
-            }
+            // Check for images in the response
+            if (message.images && message.images.length > 0) {
+                const firstImage = message.images[0];
+                const imageUrl = firstImage?.image_url?.url;
 
-            const candidate = candidates[0];
-            if (!candidate.content || !candidate.content.parts) {
-                log.error('No content parts found in image generation response');
-                return null;
-            }
-
-            // Look for inline data in the parts
-            for (const part of candidate.content.parts) {
-                if (part.inlineData && part.inlineData.data) {
-                    const mimeType = part.inlineData.mimeType || 'image/png';
-                    const imageData = part.inlineData.data;
-
-                    // Validate base64 data
-                    if (this.isValidBase64(imageData)) {
-                        log.info(`Extracted image data: ${mimeType}, size: ${imageData.length} chars`);
-                        return `data:${mimeType};base64,${imageData}`;
-                    } else {
-                        log.error('Invalid base64 image data received');
-                        return null;
-                    }
+                if (imageUrl) {
+                    log.info(`Extracted image from chat response, URL length: ${imageUrl.length} chars`);
+                    // OpenRouter returns base64 data URLs directly (e.g., "data:image/png;base64,...")
+                    return imageUrl;
                 }
             }
 
-            log.error('No inline image data found in response parts');
+            log.error('No images found in chat completions response');
+            log.debug('Response structure:', JSON.stringify(chatResponse, null, 2));
             return null;
 
         } catch (error) {
-            log.error('Error extracting image data from response:', error);
+            log.error('Error extracting image from chat response:', error);
             return null;
         }
     }
@@ -786,71 +899,20 @@ The image should help someone understand and remember the meaning of "${word}" v
 
             log.info(`Testing image generation with word: ${testWord}`);
 
-            // Create a specific prompt for image generation
-            const prompt = `Generate a simple, educational illustration for the word "${testWord}". 
-            The image should show someone taking an exam or quiz, with papers and pencils, 
-            representing the concept of testing or examination. 
-            Make it clean, colorful, and suitable for educational purposes.`;
+            const imageUrl = await this.generateWordImage(testWord);
 
-            // Use direct API call to ensure proper response modalities configuration
-            const apiKey = this.config!.apiKey;
-            const imageModel = this.config!.imageModel;
-            
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        role: 'user',
-                        parts: [{ text: prompt }]
-                    }],
-                    generationConfig: {
-                        responseModalities: ["TEXT", "IMAGE"]
-                    }
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                return {
-                    success: false,
-                    error: `API error: ${response.status} ${response.statusText} - ${errorData.error?.message || 'Unknown error'}`
-                };
-            }
-
-            const data = await response.json();
-            
-            // Try to extract image data from response
-            const imageData = this.extractImageDataFromResponse(data);
-            
-            if (imageData) {
+            if (imageUrl) {
                 log.info(`Successfully generated test image for word: ${testWord}`);
                 return {
                     success: true,
-                    imageUrl: imageData
-                };
-            } else {
-                // If no image data, return the text response for debugging
-                let textResponse = '';
-                // Type guard and safe access to response data
-                if (data && typeof data === 'object' && 'candidates' in data) {
-                    const response = data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-                    if (response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts) {
-                        for (const part of response.candidates[0].content.parts) {
-                            if (part.text) {
-                                textResponse += part.text;
-                            }
-                        }
-                    }
-                }
-                log.warn('No image data in response, got text instead:', textResponse);
-                return {
-                    success: false,
-                    error: `Image generation not supported. Response: ${textResponse || 'Empty response'}`
+                    imageUrl
                 };
             }
+
+            return {
+                success: false,
+                error: 'No image data found in API response during test'
+            };
 
         } catch (error) {
             log.error('Test image generation failed:', error);

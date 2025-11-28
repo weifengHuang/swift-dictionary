@@ -200,8 +200,8 @@ export const AISearchComponent: React.FC<AISearchComponentProps> = ({ className 
         )}
       </div>
 
-      {/* Enhanced Loading state - only show when not streaming */}
-      {isLoading && !isStreaming && (
+      {/* Enhanced Loading state - only show when not streaming and no results yet */}
+      {isLoading && !isStreaming && !result && (
         <Card className="loading-card mb-8">
           <div className="loading-content">
             <div className="mb-6">

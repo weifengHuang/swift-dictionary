@@ -9,12 +9,20 @@ import {
 import type { ReactNode } from 'react';
 import type { IpcRendererEvent } from 'electron';
 
+// Runtime enum values (mirrors the type declaration in index.d.ts)
+const AIErrorType = {
+  API_KEY_MISSING: 'API_KEY_MISSING',
+  API_RATE_LIMIT: 'API_RATE_LIMIT',
+  API_NETWORK_ERROR: 'API_NETWORK_ERROR',
+  API_INVALID_RESPONSE: 'API_INVALID_RESPONSE',
+  IMAGE_GENERATION_FAILED: 'IMAGE_GENERATION_FAILED'
+} as const;
+
 type AiLookupStatus =
   | 'idle'
   | 'validating'
   | 'loading'
   | 'streaming'
-  | 'image-loading'
   | 'ready'
   | 'error';
 
@@ -28,6 +36,7 @@ interface AiLookupState {
   retryCount: number;
   canRetry: boolean;
   activeRequestId: number | null;
+  imageLoading: boolean;
 }
 
 const MAX_RETRIES = 3;
@@ -61,6 +70,7 @@ type AiLookupAction =
   | { type: 'start'; payload: StartPayload }
   | { type: 'chunk'; payload: ChunkPayload }
   | { type: 'complete'; payload: CompletePayload }
+  | { type: 'imageStart'; payload: { requestId: number } }
   | { type: 'imageResolved'; payload: ImageResolvedPayload }
   | { type: 'imageFailed'; payload: FailPayload }
   | { type: 'searchFailed'; payload: FailPayload }
@@ -78,7 +88,8 @@ const initialState: AiLookupState = {
   imageError: null,
   retryCount: 0,
   canRetry: true,
-  activeRequestId: null
+  activeRequestId: null,
+  imageLoading: false
 };
 
 const isActive = (state: AiLookupState, requestId: number) =>
@@ -98,7 +109,8 @@ function aiLookupReducer(state: AiLookupState, action: AiLookupAction): AiLookup
         searchError: null,
         imageError: null,
         canRetry: state.retryCount < MAX_RETRIES,
-        activeRequestId: action.payload.requestId
+        activeRequestId: action.payload.requestId,
+        imageLoading: true
       };
     }
     case 'chunk': {
@@ -117,7 +129,7 @@ function aiLookupReducer(state: AiLookupState, action: AiLookupAction): AiLookup
       }
       return {
         ...state,
-        status: 'image-loading',
+        status: 'ready',
         result: {
           word: action.payload.result.word,
           definition: action.payload.result.definition,
@@ -129,22 +141,27 @@ function aiLookupReducer(state: AiLookupState, action: AiLookupAction): AiLookup
         canRetry: true
       };
     }
-    case 'imageResolved': {
+    case 'imageStart': {
       if (!isActive(state, action.payload.requestId)) {
-        return state;
-      }
-      if (!state.result) {
         return state;
       }
       return {
         ...state,
-        status: 'ready',
-        result: {
+        imageLoading: true
+      };
+    }
+    case 'imageResolved': {
+      if (!isActive(state, action.payload.requestId)) {
+        return state;
+      }
+      return {
+        ...state,
+        result: state.result ? {
           ...state.result,
           imageUrl: action.payload.imageUrl
-        },
+        } : null,
         imageError: null,
-        activeRequestId: null
+        imageLoading: false
       };
     }
     case 'imageFailed': {
@@ -154,9 +171,8 @@ function aiLookupReducer(state: AiLookupState, action: AiLookupAction): AiLookup
       }
       return {
         ...state,
-        status: state.result ? 'ready' : 'error',
         imageError: error,
-        activeRequestId: null
+        imageLoading: false
       };
     }
     case 'searchFailed': {
@@ -173,7 +189,8 @@ function aiLookupReducer(state: AiLookupState, action: AiLookupAction): AiLookup
         result: null,
         retryCount: nextRetryCount,
         canRetry: nextRetryCount < MAX_RETRIES,
-        activeRequestId: null
+        activeRequestId: null,
+        imageLoading: false
       };
     }
     case 'resetError':
@@ -202,6 +219,7 @@ type AiLookupContextValue = {
     startLookup: (payload: StartPayload) => void;
     streamChunk: (payload: ChunkPayload) => void;
     streamComplete: (payload: CompletePayload) => void;
+    imageStart: (payload: { requestId: number }) => void;
     imageResolved: (payload: ImageResolvedPayload) => void;
     imageFailed: (payload: FailPayload) => void;
     searchFailed: (payload: FailPayload) => void;
@@ -226,6 +244,7 @@ export const AiLookupProvider = ({ children }: AiLookupProviderProps) => {
       startLookup: (payload: StartPayload) => dispatch({ type: 'start', payload }),
       streamChunk: (payload: ChunkPayload) => dispatch({ type: 'chunk', payload }),
       streamComplete: (payload: CompletePayload) => dispatch({ type: 'complete', payload }),
+      imageStart: (payload: { requestId: number }) => dispatch({ type: 'imageStart', payload }),
       imageResolved: (payload: ImageResolvedPayload) => dispatch({ type: 'imageResolved', payload }),
       imageFailed: (payload: FailPayload) => dispatch({ type: 'imageFailed', payload }),
       searchFailed: (payload: FailPayload) => dispatch({ type: 'searchFailed', payload }),
@@ -254,10 +273,9 @@ export const useAiLookup = () => {
   const derived = useMemo(() => {
     const isLoading =
       state.status === 'loading' ||
-      state.status === 'streaming' ||
-      state.status === 'image-loading';
+      state.status === 'streaming';
     const isStreaming = state.status === 'streaming';
-    const isImageLoading = state.status === 'image-loading';
+    const isImageLoading = state.imageLoading;
 
     return {
       isLoading,
@@ -486,6 +504,9 @@ export const useAiLookupController = (): LookupHandlers => {
 
       actions.startLookup({ query: trimmed, requestId });
 
+      // Start image generation in parallel with text streaming
+      void generateImage(trimmed, '', requestId);
+
       streamHandlers.attach(
         requestId,
         trimmed,
@@ -502,7 +523,6 @@ export const useAiLookupController = (): LookupHandlers => {
               source: 'gemini'
             }
           });
-          void generateImage(payload.word, payload.definition, requestId);
         },
         (payload) => {
           actions.searchFailed({
