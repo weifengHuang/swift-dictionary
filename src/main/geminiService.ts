@@ -1,5 +1,9 @@
 import OpenAI from 'openai';
-import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import type {
+    ChatCompletionMessageParam,
+    ChatCompletionCreateParamsStreaming,
+    ChatCompletionCreateParamsNonStreaming,
+} from 'openai/resources/chat/completions';
 import * as dotenv from 'dotenv';
 import log from 'electron-log';
 import path from 'path';
@@ -382,19 +386,30 @@ export class GeminiService {
 
         // Default to 4096 tokens, which is reasonable for word definitions
         // This prevents the API from using the model's maximum (e.g., 64000)
-        const maxTokens = options.maxTokens ?? 4096;
+        const maxTokens = options.maxTokens;
 
-        const request = {
-            model: this.config.textModel,
-            messages,
-            max_tokens: maxTokens
+        // OpenRouter provider routing configuration
+        // See: https://openrouter.ai/docs/features/provider-routing
+        // We spread provider directly into the request body using type assertion
+        // because OpenRouter extends the OpenAI API with additional fields
+        const providerConfig = {
+            provider: {
+                only: ['google-ai-studio'],
+                allow_fallbacks: false,
+            },
         };
 
         if (options.stream) {
-            const stream = await client.chat.completions.create({
-                ...request,
-                stream: true
-            });
+            const streamParams = {
+                model: this.config.textModel,
+                messages,
+                max_tokens: maxTokens,
+                stream: true as const,
+                ...providerConfig,
+            };
+            const stream = await client.chat.completions.create(
+                streamParams as ChatCompletionCreateParamsStreaming
+            );
 
             let fullText = '';
             for await (const chunk of stream) {
@@ -418,10 +433,16 @@ export class GeminiService {
             return fullText;
         }
 
-        const completion = await client.chat.completions.create({
-            ...request,
-            stream: false
-        });
+        const nonStreamParams = {
+            model: this.config.textModel,
+            messages,
+            max_tokens: maxTokens,
+            stream: false as const,
+            ...providerConfig,
+        };
+        const completion = await client.chat.completions.create(
+            nonStreamParams as ChatCompletionCreateParamsNonStreaming
+        );
 
         const content = completion?.choices?.[0]?.message?.content;
         const text = this.extractContentText(content);
@@ -667,18 +688,26 @@ Word: ${word}`;
             // See: https://openrouter.ai/docs/guides/overview/multimodal/image-generation
             // Note: max_tokens is set low (256) since we primarily want the image output,
             // not extensive text. This also prevents exceeding credit limits on paid accounts.
-            const response = await client.chat.completions.create({
+            const imageParams = {
                 model: this.config!.imageModel,
                 messages: [
                     {
-                        role: 'user',
+                        role: 'user' as const,
                         content: prompt
                     }
                 ],
                 max_tokens: 256,
-                // @ts-expect-error - OpenRouter extension: modalities parameter for image generation
-                modalities: ['image', 'text']
-            });
+                stream: false as const,
+                // OpenRouter extensions: modalities and provider routing
+                modalities: ['image', 'text'],
+                provider: {
+                    only: ['google-ai-studio'],
+                    allow_fallbacks: false,
+                },
+            };
+            const response = await client.chat.completions.create(
+                imageParams as ChatCompletionCreateParamsNonStreaming
+            );
             
             // Extract image data from OpenRouter response format
             const imageUrl = this.extractImageFromChatResponse(response);
@@ -879,47 +908,6 @@ The image should help someone understand and remember the meaning of "${word}" v
             log.error('Error in getWordDefinitionWithImage:', error);
             // If definition fails, the whole operation fails
             throw error;
-        }
-    }
-
-    /**
-     * Test method to generate image with word "test" using image generation model
-     * This test uses the configured image model to attempt image generation
-     */
-    public async testImageGeneration(): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
-        const testWord = "test";
-        
-        try {
-            if (!this.isConfigured()) {
-                return {
-                    success: false,
-                    error: 'Gemini service is not properly configured'
-                };
-            }
-
-            log.info(`Testing image generation with word: ${testWord}`);
-
-            const imageUrl = await this.generateWordImage(testWord);
-
-            if (imageUrl) {
-                log.info(`Successfully generated test image for word: ${testWord}`);
-                return {
-                    success: true,
-                    imageUrl
-                };
-            }
-
-            return {
-                success: false,
-                error: 'No image data found in API response during test'
-            };
-
-        } catch (error) {
-            log.error('Test image generation failed:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error occurred'
-            };
         }
     }
 }
